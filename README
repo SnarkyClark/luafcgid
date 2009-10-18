@@ -10,7 +10,7 @@ persistent Lua states, that are then loaded with Lua scripts from the file
 system. These scripts are loaded/initialized on demand, and held in memory for 
 as long as possible. The Lua scripts are also allowed to interface with the 
 FastCGI libraries: thus providing an extremely fast, streamlined and 
-lightwieght platform from which to develop web-centric apps in Lua.
+lightweight platform from which to develop web-centric apps in Lua.
 
 
 All development testing is done with the following server platform:
@@ -58,9 +58,16 @@ handled with a minimum of fuss.
 		
 Lua is then introduced into the picture by created a shared Lua state for each 
 Lua script that is requested. This setup is inspired by the 'mod_wombat' 
-project. A state is initilalized and loaded with the script, and is kept 
-active for as long as possible. This allows for persistance across HTTP 
+project. A state is initialized and loaded with the script, and is kept 
+active for as long as possible. This allows for persistence across HTTP 
 requests. There is a configurable limit to the total number of Lua states
 that luafcgid will maintain. When this limit is reached, popularity and aging
 are used to decide which states to flush and reload with a new script.
 
+---
+PREREQUISITES
+---
+
+Lua 5.1
+libfcgi 2.4
+libpthread/libthr/pthreadw32
