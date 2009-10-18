@@ -52,8 +52,8 @@ handled with a minimum of fuss.
                        +-->| worker thread |--+            +-------------+
  +------------------+  |   +---------------+  |            |   script    |
  | luafcgid process |--+                      +-- mutex -->| loaded into |
- +------------------+  |   +---------------+  |	           |  Lua state  |
-                       +-->| worker thread |--+	           +-------------+
+ +------------------+  |   +---------------+  |            |  Lua state  |
+                       +-->| worker thread |--+            +-------------+
                            +---------------+
 		
 Lua is then introduced into the picture by created a shared Lua state for each 
