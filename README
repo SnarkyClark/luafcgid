@@ -32,9 +32,35 @@ Lua - last stable release
 libthr - drop-in replacement for libpthread
 
 
-** NOTE: Further testing may be done on other platforms when available. Volunteers welcome. **
+** NOTE: Further testing may be done on other platforms when available. 
+** Volunteers welcome. 
 
 ---
 DESIGN
 ---
-The basic design of luafcgid is currently based off of the "threaded.c" exmaple provided
+
+The basic design of luafcgid is currently based off of the "threaded.c" example 
+provided in the official FactCGI devkit. This is where each worker thread 
+contains an isolated blocking accept loop. By adding a very small amount of
+random delay in each loop, various 'harmonics' are avoided and the load is
+spread evenly across the thread pool - without any complicated overhead
+introduced by a master accept loop. The FastCGI libraries also provide a 
+connect queue for each worker thread so that transient load spikes can be 
+handled with a minimum of fuss.
+
+                           +---------------+                                
+                       +-->| worker thread |--+            +-------------+
+ +------------------+  |   +---------------+  |            |   script    |
+ | luafcgid process |--+                      +-- mutex -->| loaded into |
+ +------------------+  |   +---------------+  |		   |  Lua state  |
+		       +-->| worker thread |--+		   +-------------+
+			   +---------------+
+		
+Lua is then introduced into the picture by created a shared Lua state for each 
+Lua script that is requested. This setup is inspired by the 'mod_wombat' 
+project. A state is initilalized and loaded with the script, and is kept 
+active for as long as possible. This allows for persistance across HTTP 
+requests. There is a configurable limit to the total number of Lua states
+that luafcgid will maintain. When this limit is reached, popularity and aging
+are used to decide which states to flush and reload with a new script.
+
