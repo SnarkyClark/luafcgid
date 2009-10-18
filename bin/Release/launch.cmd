@@ -1,0 +1,2 @@
+luafcgid 
+pause

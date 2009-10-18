@@ -1,0 +1,36 @@
+# depslib dependency file v1.0
+1255838138 source:c:\users\stefan\projects\luafcgid\main.c
+	"fcgi_config.h"
+	<pthread.h>
+	<sys/types.h>
+	<unistd.h>
+	"fcgiapp.h"
+	<windows.h>
+
+1014603020 c:\users\stefan\projects\luafcgid\include\fcgi_config.h
+
+1138114797 c:\users\stefan\projects\luafcgid\include\pthread.h
+	<windows.h>
+	"config.h"
+	<time.h>
+	<signal.h>
+	<setjmp.h>
+	<limits.h>
+	"need_errno.h"
+	<errno.h>
+	<sched.h>
+	<sys/types.h>
+
+966224589 c:\users\stefan\projects\luafcgid\include\need_errno.h
+	<winsock.h>
+
+1112316921 c:\users\stefan\projects\luafcgid\include\sched.h
+	"need_errno.h"
+	<errno.h>
+	<sys/types.h>
+	<time.h>
+
+1056241004 c:\users\stefan\projects\luafcgid\include\fcgiapp.h
+	<stdarg.h>
+	<varargs.h>
+
