@@ -80,16 +80,15 @@ Preliminary testing (with 10 worker threads) indicates that this may be a
 workable design...
 
 test script:
----
-s = "Hello Word"
 
+s = "Hello Word"
 function handler()
 	return s
 end
----
+
 
 httperf results:
----
+
 httperf --timeout=5 --client=0/1 --server=10.0.0.18 --port=80 --uri=/test.lua 
 --send-buffer=4096 --recv-buffer=16384 --num-conns=1000 --num-calls=100
 
@@ -107,11 +106,34 @@ Reply rate [replies/s]: min 2229.0 avg 2340.1 max 2685.7 stddev 146.9 (8 samples
 Reply time [ms]: response 0.4 transfer 0.0
 Reply size [B]: header 177.0 content 88.0 footer 2.0 (total 267.0)
 Reply status: 1xx=0 2xx=100000 3xx=0 4xx=0 5xx=0
----
 
-server top:
----
-40861 root       10   8    0  5664K  1568K nanslp  1   0:02 18.65% luafcgid
+
+server load:
+
+  PID USERNAME  THR PRI NICE   SIZE    RES STATE   C   TIME   WCPU COMMAND
+40861 www        10   8    0  5664K  1568K nanslp  1   0:02 18.65% luafcgid
 40918 www         1  96    0  5132K  3632K RUN     0   0:35  2.88% nginx
----
 
+
+** UPDATE **
+
+When using unix sockets instead of loaclhost TCP:
+
+Connection rate: 32.8 conn/s (30.5 ms/conn, <=1 concurrent connections)
+Connection time [ms]: min 27.1 avg 30.5 max 113.5 median 28.5 stddev 8.8
+Connection time [ms]: connect 0.1
+Connection length [replies/conn]: 100.000
+
+Request rate: 3283.3 req/s (0.3 ms/req)
+Request size [B]: 66.0
+
+Reply rate [replies/s]: min 3161.8 avg 3279.4 max 3407.1 stddev 92.3 (6 samples)
+Reply time [ms]: response 0.3 transfer 0.0
+Reply size [B]: header 177.0 content 87.0 footer 2.0 (total 266.0)
+Reply status: 1xx=0 2xx=100000 3xx=0 4xx=0 5xx=0
+
+server load: 
+
+  PID USERNAME  THR PRI NICE   SIZE    RES STATE   C   TIME   WCPU COMMAND
+56713 www        10  45    0  5664K  1484K umtxn   1   0:02 21.39% luafcgid
+56597 www         1   4    0  5132K  3604K RUN     0   0:34  1.27% nginx

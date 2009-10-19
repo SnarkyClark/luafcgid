@@ -25,6 +25,9 @@ static const char rcsid[] = "$Id: threaded.c,v 1.9 2001/11/20 03:23:21 robs Exp 
 #ifdef _WIN32
 #include <windows.h>
 #define usleep(msec) Sleep(msec)
+#define LISTEN_PATH ":9000"
+#else
+#define LISTEN_PATH "/var/tmp/luafcgid.socket"
 #endif
 
 #define THREAD_COUNT 10
@@ -167,7 +170,6 @@ int main(void)
 {
     int i, sock;
     pid_t pid = getpid();
-    char loc[20];
     pthread_t id[THREAD_COUNT];
 	struct thread_params params[THREAD_COUNT];
 
@@ -181,8 +183,7 @@ int main(void)
 
     FCGX_Init();
 
-	sprintf(loc, ":%d", 9000);
-	sock = FCGX_OpenSocket(loc, 100);
+	sock = FCGX_OpenSocket(LISTEN_PATH, 100);
     if (!sock) {
         fprintf(stderr, "\tunable to create accept socket!\n");
         fflush(stderr);
