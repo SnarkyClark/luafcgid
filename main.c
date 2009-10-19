@@ -24,7 +24,7 @@ static const char rcsid[] = "$Id: threaded.c,v 1.9 2001/11/20 03:23:21 robs Exp 
 
 #ifdef _WIN32
 #include <windows.h>
-#define sleep(msec) Sleep(msec)
+#define usleep(msec) Sleep(msec)
 #endif
 
 #define THREAD_COUNT 10
@@ -37,30 +37,25 @@ const char hello_world[] =
     "   return 'Hello World!'"
     "end";
 
+struct thread_params {
+	int pid;
+	int tid;
+	int sock;
+};
 
 // static int counts[THREAD_COUNT];
 
 static void *doit(void *a)
 {
-    int rc, thread_id = (int)a;
-    char loc[20];
-    int sock = 0;
-    pid_t pid = getpid();
+    int rc;
+    struct thread_params* params = (struct thread_params*)a;
     FCGX_Request request;
     //char *server_name;
 
-    sprintf(loc, "localhost:%d", 9000);
-    fprintf(stderr, "starting worker %d @ %s\n", thread_id, loc);
+    fprintf(stderr, "starting worker %d-%d\n", params->pid, params->tid);
     fflush(stderr);
 
-    sock = FCGX_OpenSocket(loc, 100);
-    if (!sock) {
-        fprintf(stderr, "\tunable to create accept socket!\n");
-        fflush(stderr);
-        return NULL;
-    }
-
-    FCGX_InitRequest(&request, sock, 0);
+    FCGX_InitRequest(&request, params->sock, 0);
 
     for (;;) {
         static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -114,7 +109,7 @@ static void *doit(void *a)
                 "<title>Test App</title>\n"
                 "<body><h2>Success</h2></body>\n"
                 "<p>%s</p>\n"
-                "</html>", pid, thread_id, lua_tostring(L, -1));
+                "</html>", params->pid, params->tid, lua_tostring(L, -1));
                 lua_pop(L, 1);
         } else if (rc == LUA_ERRRUN) {
             FCGX_FPrintF(request.out,
@@ -124,7 +119,7 @@ static void *doit(void *a)
                 "<title>Application Error</title>\n"
                 "<body><h2>Runtime Error</h2></body>\n"
                 "<p>%s</p>\n"
-                "</html>", pid, thread_id, lua_tostring(L, -1));
+                "</html>", params->pid, params->tid, lua_tostring(L, -1));
                 lua_pop(L, 1);
         } else if (rc == LUA_ERRSYNTAX) {
             FCGX_FPrintF(request.out,
@@ -134,7 +129,7 @@ static void *doit(void *a)
                 "<title>Application Error</title>\n"
                 "<body><h2>Syntax Error</h2></body>\n"
                 "<p>%s</p>\n"
-                "</html>", pid, thread_id, lua_tostring(L, -1));
+                "</html>", params->pid, params->tid, lua_tostring(L, -1));
                 lua_pop(L, 1);
         } else if (rc == LUA_ERRMEM) {
             FCGX_FPrintF(request.out,
@@ -143,7 +138,7 @@ static void *doit(void *a)
                 "\r\n<html>\n"
                 "<title>Application Error</title>\n"
                 "<body><h2>Out Of Memory</h2></body>\n"
-                "</html>", pid, thread_id);
+                "</html>", params->pid, params->tid);
         } else {
             FCGX_FPrintF(request.out,
                 "Content-type: text/html\r\n"
@@ -151,14 +146,14 @@ static void *doit(void *a)
                 "\r\n<html>\n"
                 "<title>Application Error</title>\n"
                 "<body><h2>Unknown Error %d</h2></body>\n"
-                "</html>", pid, thread_id, rc);
+                "</html>", params->pid, params->tid, rc);
         }
         pthread_mutex_unlock(&lua_mutex);
 
         FCGX_Finish_r(&request);
 
         // avoid harmonics
-        sleep((int)((rand() % 3) + 1));
+        usleep((int)((rand() % 3) + 1));
 
     }
 
@@ -169,8 +164,11 @@ static void *doit(void *a)
 
 int main(void)
 {
-    int i;
+    int i, sock;
+    pid_t pid = getpid();
+    char loc[20];
     pthread_t id[THREAD_COUNT];
+	struct thread_params params[THREAD_COUNT];
 
     L = lua_open();
     if (!L) {
@@ -182,12 +180,26 @@ int main(void)
 
     FCGX_Init();
 
-    for (i = 1; i < THREAD_COUNT; i++) {
-        pthread_create(&id[i], NULL, doit, (void*)i);
-        sleep(10);
+	sprintf(loc, ":%d", 9000);
+	sock = FCGX_OpenSocket(loc, 100);
+    if (!sock) {
+        fprintf(stderr, "\tunable to create accept socket!\n");
+        fflush(stderr);
+        return 1;
     }
 
-    doit(0);
+	for (i = 0; i < THREAD_COUNT; i ++) {
+		params[i].pid = pid;
+		params[i].tid = i;
+		params[i].sock = sock;
+	}
+
+    for (i = 1; i < THREAD_COUNT; i++) {
+        pthread_create(&id[i], NULL, doit, (void*)&params[i]);
+        usleep(10);
+    }
+
+    doit((void*)&params[0]);
 
     return 0;
 }
