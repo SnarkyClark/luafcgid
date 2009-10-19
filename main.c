@@ -33,9 +33,10 @@ static lua_State* L;
 static int loaded = 0;
 
 const char hello_world[] =
-    "function handler()"
-    "   return 'Hello World!'"
-    "end";
+    "s = 'Hello World'\n"
+    "function handler()\n"
+    "   return s\n"
+    "end\n";
 
 struct thread_params {
 	int pid;
