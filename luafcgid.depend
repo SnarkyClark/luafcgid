@@ -1,10 +1,14 @@
 # depslib dependency file v1.0
-1255838138 source:c:\users\stefan\projects\luafcgid\main.c
-	"fcgi_config.h"
+1256089902 source:c:\users\stefan\projects\luafcgid\main.c
+	<fcgi_config.h>
+	<stdio.h>
 	<pthread.h>
 	<sys/types.h>
 	<unistd.h>
-	"fcgiapp.h"
+	<lua.h>
+	<lauxlib.h>
+	<lualib.h>
+	<fcgiapp.h>
 	<windows.h>
 
 1014603020 c:\users\stefan\projects\luafcgid\include\fcgi_config.h
@@ -33,4 +37,30 @@
 1056241004 c:\users\stefan\projects\luafcgid\include\fcgiapp.h
 	<stdarg.h>
 	<varargs.h>
+
+1255849261 c:\users\stefan\projects\luafcgid\include\lua.h
+	<stdarg.h>
+	<stddef.h>
+	"luaconf.h"
+
+1255849261 c:\users\stefan\projects\luafcgid\include\luaconf.h
+	<limits.h>
+	<stddef.h>
+	<unistd.h>
+	<io.h>
+	<stdio.h>
+	<stdio.h>
+	<readline/readline.h>
+	<readline/history.h>
+	<assert.h>
+	<math.h>
+	<unistd.h>
+
+1255849261 c:\users\stefan\projects\luafcgid\include\lauxlib.h
+	<stddef.h>
+	<stdio.h>
+	"lua.h"
+
+1255849261 c:\users\stefan\projects\luafcgid\include\lualib.h
+	"lua.h"
 
