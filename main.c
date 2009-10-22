@@ -30,8 +30,8 @@ static const char rcsid[] = "$Id: threaded.c,v 1.9 2001/11/20 03:23:21 robs Exp 
 #define LISTEN_PATH "/var/tmp/luafcgid.socket"
 #endif
 
-#define WORKER_COUNT 10
-#define VM_COUNT 10
+#define WORKER_COUNT 3
+#define VM_COUNT 5
 
 #define CHATTER
 
@@ -96,11 +96,14 @@ static void *worker(void *a) {
 		// search for script
         pthread_mutex_lock(&pool_mutex);
 		for (i = 0; i < VM_COUNT; i++) {
-			if (!(pool[i]->status) &&
-				strcmp(script, pool[i]->name) == 0) {
+			if (pool[i]->state && !(pool[i]->status)) {
+				if ((!script && !pool[i]->name) ||
+                    ((script && pool[i]->name) &&
+                    (strcmp(script, pool[i]->name) == 0))) {
 					// lock it
 					pool[i]->status = 1;
 					break;
+                }
 			}
 		}
 		pthread_mutex_unlock(&pool_mutex);
@@ -120,62 +123,66 @@ static void *worker(void *a) {
 				return NULL;
 			}
 			luaL_openlibs(L);
-/*
+
             // load and run chunk
             rc = luaL_loadbuffer(L, hello_world, strlen(hello_world), "hello_world");
             if (rc == 0) rc = lua_pcall(L, 0, 0, 0);
-            if (rc == 0) loaded = 1;
-*/
-			// pick which part of the pool to use
-			pthread_mutex_lock(&pool_mutex);
-			// is there a free spot?
-			for (i = 0; i < VM_COUNT; i++) {
-				if (!pool[i]->status && !pool[i]->state) {
-				    pool[i]->status = 1;
-				    break;
-				}
-			}
-			if (i == VM_COUNT) {
-				// time to kick someone out of the pool :(
-				// TODO: find a better way to pick a loser
-                do {
-                    // search for an inactive state
-                    for (i = 0; i < VM_COUNT; i++) {
-                        if (!pool[i]->status) {
-                            // found one, so lock it for ourselves
-                            pool[i]->status = 1;
-                            break;
+
+			if (rc == 0) {
+			    // pick which part of the pool to use
+                pthread_mutex_lock(&pool_mutex);
+                // is there a free spot?
+                for (i = 0; i < VM_COUNT; i++) {
+                    if (!pool[i]->status && !pool[i]->state) {
+                        pool[i]->status = 1;
+                        break;
+                    }
+                }
+                if (i == VM_COUNT) {
+                    // time to kick someone out of the pool :(
+                    // TODO: find a better way to pick a loser
+                    do {
+                        // search for an inactive state
+                        for (i = 0; i < VM_COUNT; i++) {
+                            if (!pool[i]->status) {
+                                // found one, so lock it for ourselves
+                                pool[i]->status = 1;
+                                break;
+                            }
                         }
-                    }
-                    if (i == VM_COUNT) {
-                        // the pool is full & everyone is busy!
-                        // unlock the pool for a bit so someone else can flag out
-                        pthread_mutex_unlock(&pool_mutex);
-                        usleep((int)((rand() % 3) + 1));
-                        pthread_mutex_lock(&pool_mutex);
-                    }
-                } while (i < VM_COUNT);
-#ifdef CHATTER
-				fprintf(stderr, "\t[%d] kicked [%d] out of the pool\n", params->tid, i);
-				fflush(stderr);
-#endif
-			}
-			// 'i' should now point to a slot that is locked and free to use
-            pthread_mutex_unlock(&pool_mutex);
-            // shut it down if needed
-            if (pool[i]->state) {
-                lua_close(pool[i]->state);
-                free(pool[i]->name);
+                        if (i == VM_COUNT) {
+                            // the pool is full & everyone is busy!
+                            // unlock the pool for a bit so someone else can flag out
+                            pthread_mutex_unlock(&pool_mutex);
+                            usleep((int)((rand() % 3) + 1));
+                            pthread_mutex_lock(&pool_mutex);
+                        }
+                    } while (i == VM_COUNT);
+    #ifdef CHATTER
+                    fprintf(stderr, "\t[%d] kicked [%d] out of the pool\n", params->tid, i);
+                    fflush(stderr);
+    #endif
+                }
+                // 'i' should now point to a slot that is locked and free to use
+                pthread_mutex_unlock(&pool_mutex);
+                // shut it down if needed
+                if (pool[i]->state) lua_close(pool[i]->state);
+                if (pool[i]->name) free(pool[i]->name);
+                // toss the Lua state into the pool
+                if (script) {
+                    pool[i]->name = (char*)malloc(strlen(script) + 1);
+                    strcpy(pool[i]->name, script);
+                } else {
+                    pool[i]->name = NULL;
+                }
+                pool[i]->state = L;
+    #ifdef CHATTER
+                fprintf(stderr, "\t[%d] loaded '%s' into [%d]\n", params->tid, script, i);
+                fflush(stderr);
+    #endif
+            } else {
+                i = VM_COUNT;
             }
-			// toss the Lua state into the pool
-			pool[i]->name = (char*)malloc(strlen(script) + 1);
-			strcpy(pool[i]->name, script);
-			pool[i]->state = L;
-	        pthread_mutex_unlock(&pool_mutex);
-#ifdef CHATTER
-			fprintf(stderr, "\t[%d] loaded '%s' into [%d]\n", params->tid, script, i);
-			fflush(stderr);
-#endif
 		}
 
         if (rc == 0) {
@@ -243,12 +250,18 @@ static void *worker(void *a) {
 
         FCGX_Finish_r(&request);
 
+        if (i < VM_COUNT) {
+            // we are done with the slot, so we shall flag out
+            pthread_mutex_lock(&pool_mutex);
+            pool[i]->status = 0;
+            pthread_mutex_unlock(&pool_mutex);
+        }
+
         // avoid harmonics
         usleep((int)((rand() % 3) + 1));
 
     }
 
-    lua_close(L);
     return NULL;
 
 }
@@ -279,8 +292,10 @@ int main(int arc, char** argv) {
         return 1;
     }
 
+    params = (params_t**)malloc(sizeof(params_t*) * WORKER_COUNT);
     for (i = 0; i < WORKER_COUNT; i++) {
 		// initialize worker params
+		params[i] = (params_t*)malloc(sizeof(params_t));
 		params[i]->pid = pid;
 		params[i]->tid = i;
 		params[i]->sock = sock;
@@ -294,12 +309,15 @@ int main(int arc, char** argv) {
 		// TODO: housekeeping
     }
 
+	for (i = 0; i < WORKER_COUNT; i++) {
+            free(params[i]);
+    }
+    free(params);
+
 	// dealloc VM pool
 	for (i = 0; i < VM_COUNT; i++) {
-		if (pool[i]->state) {
-			lua_close(pool[i]->state);
-			free(pool[i]->name);
-		}
+		if (pool[i]->state) lua_close(pool[i]->state);
+		if (pool[i]->name) free(pool[i]->name);
 	}
 	free(pool);
 
