@@ -21,7 +21,7 @@ Hardware:
 
 Pentium 4 3+ Ghz
 Intel MB chipset
-Intel Pro+ 1GB Ethernet
+Intel Pro+ 1GB ethernet
 2GB RAM
 
 Software:
@@ -87,28 +87,35 @@ add the following lines to your server{} section:
 DESIGN
 ---
 
-The basic design of luafcgid is currently based off of the "threaded.c" example 
-provided in the official FactCGI devkit. This is where each worker thread 
-contains an isolated blocking accept loop. The FastCGI libraries provide a 
-connect queue for each worker thread so that transient load spikes can be 
-handled with a minimum of fuss.
+luafcgid spawns and manages a number of worker threads that each contain an 
+isolated blocking accept loop. The FastCGI libraries provide a connect queue 
+for each worker thread so that transient load spikes can be handled with a 
+minimum of fuss.
 
                            +---------------+                                
-                       +-->| worker thread |--+            +-------------+
- +------------------+  |   +---------------+  |            |   script    |
- | luafcgid process |--+                      +-- mutex -->| loaded into |
- +------------------+  |   +---------------+  |            |  Lua state  |
-                       +-->| worker thread |--+            +-------------+
-                           +---------------+
-		
+                       +-->| worker thread |--+              +-------------+
+ +------------------+  |   +---------------+  |              |   scripts   |
+ | luafcgid process |--+                      +---- mutex -->| loaded into |
+ +------------------+  |   +---------------+  |       ^      |  Lua states |
+            |          +-->| worker thread |--+       |      +-------------+
+            |              +---------------+          |                
+            |                                         |             
+			+--------------- housekeeping ------------+             
+			
 Lua is then introduced into the picture by created a shared Lua state for each 
-Lua script that is requested. This setup is inspired by the 'mod_wombat' 
-project. A state is initialized and loaded with the script, and is kept 
-in memory for as long as possible. This allows for persistence across HTTP 
-requests. Each Lua VM is run WITHIN THE WORKER THREAD as needed. There is
-a configurable limit to the total number of Lua states that luafcgid will 
-maintain. When this limit is reached, popularity and aging are used to decide
-which states to flush and reload with a new script.
+Lua script that is requested. A script can also be loaded into more then one 
+state if heavily requested. All scripts - including duplicates (clones) - are
+completely isolated from each other. After a state is initialized and loaded 
+with a script, it is kept in memory for as long as possible. This allows for 
+persistence across HTTP requests. Each Lua VM is run within a worker thread 
+as needed. The use of on-demand clones allows for multiple workers to run the 
+same popular script. There is a configurable limit to the total number of Lua 
+states that luafcgid will maintain. When this limit is reached, popularity and 
+aging are used to decide which states to flush and reload with a new script.
+
+Global housekeeping is run on a regular cycle (heartbeat) independent of 
+requests. Current tasks include flushing any loaded scripts that have been 
+modified. More tasks may be added in the future.
 
 ---
 PERFORMANCE
