@@ -47,20 +47,33 @@
     FCGX_FPrintF(stream, \
 		"Status: 404 Not Found\r\n" \
 		"Content-Type: text/html\r\n\r\n" \
-		"<html><head><style type='text/css'>" \
-		"body {font-family:Arial,Sans,Helv; font-size:10pt}\r\n" \
-		"h1 {color:grey}\r\npre {color:maroon}" \
-		"</style></head>\r\n" \
-		"<body><h1>404 Not Found</h1><pre>\"%s\"</pre></body></html>", filename)
+		"<html>\r\n<head>\r\n" \
+		"<title>The page was not found</title>\r\n" \
+		"<style type='text/css'>\r\n" \
+		"\tbody {font-family: Tahoma,Verdana,Arial,sans-serif;}\r\n" \
+		"\tp.details {color: gray; font-size: 85%%}\r\n" \
+		"\tpre {color:maroon; font-size:85%%; margin-top:6pt}\r\n" \
+		"</style>\r\n</head>\r\n<body bgcolor=\"white\" text=\"black\">\r\n" \
+		"<table width=\"100%%\" height=\"100%%\"><tr><td align=\"center\" valign=\"middle\">\r\n" \
+		"<p>The page you are looking for cannot be found</p><br/>" \
+		"<p class=\"details\">- <b>Filename</b> -<br/>\r\n<pre>\"%s\"</pre></p>\r\n" \
+		"</td></tr></table>\r\n</body>\r\n</html>", filename)
 #define HTTP_500(stream, errtype, errmsg) \
     FCGX_FPrintF(stream, \
 		"Status: 500 Internal Server Error\r\n" \
 		"Content-Type: text/html\r\n\r\n" \
-		"<html><head><style type='text/css'>" \
-		"body {font-family:Arial,Sans,Helv; font-size:10pt}\r\n" \
-		"h1 {color:grey}\r\npre {color:maroon}" \
-		"</style></head>\r\n" \
-		"<body><h1>500 Internal Server Error</h1><h2>%s</h2><pre>%s</pre></body></html>", errtype, errmsg)
+		"<html>\r\n<head>\r\n" \
+		"<title>The page is temporarily unavailable</title>\r\n" \
+		"<style type='text/css'>\r\n" \
+		"\tbody {font-family: Tahoma,Verdana,Arial,sans-serif;}\r\n" \
+		"\tp.details {color: gray; font-size: 85%%}\r\n" \
+		"\tpre {color:maroon; font-size:85%%; margin-top:6pt}\r\n" \
+		"</style>\r\n</head>\r\n<body bgcolor=\"white\" text=\"black\">\r\n" \
+		"<table width=\"100%%\" height=\"100%%\"><tr><td align=\"center\" valign=\"middle\">\r\n" \
+		"<p>The page you are looking for is temporarily unavailable.<br/>Please try again later.</p><br/>" \
+		"<p class=\"details\">- <b>%s</b> -<br/>\r\n<table><tr><td><pre>\r\n%s\r\n" \
+		"</pre></td></tr></table></p>\r\n" \
+		"</td></tr></table>\r\n</body>\r\n</html>", errtype, errmsg)
 
 #define CHATTER
 
