@@ -23,7 +23,7 @@ luafcgid: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS)
 
 install: all
-	install -b -s $(EXEC) $(INSTALL_DIR)
+	install -b luafcgid $(INSTALL_DIR)
 
 clean:
 	rm -f $(OBJS) $(EXEC)
