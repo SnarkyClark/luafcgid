@@ -1,20 +1,19 @@
 /*
- * threaded.c -- A simple multi-threaded FastCGI application.
+ * luafcgid -- A simple multi-threaded Lua+FastCGI daemon.
+ *
+ * this code is provided under the "Simplified BSD License"
+ * (c) STPeters 2009
  */
-
-#ifndef lint
-static const char rcsid[] = "$Id: threaded.c,v 1.9 2001/11/20 03:23:21 robs Exp $";
-#endif /* not lint */
 
 #include <fcgi_config.h>
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
 #include <sys/types.h>
-
-#ifdef HAVE_UNISTD_H
+#include <sys/stat.h>
 #include <unistd.h>
-#endif
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -22,10 +21,14 @@ static const char rcsid[] = "$Id: threaded.c,v 1.9 2001/11/20 03:23:21 robs Exp 
 
 #include <fcgiapp.h>
 
+#define STATUS_OK 0
+#define STATUS_BUSY 1
+
 #ifdef _WIN32
 #include <windows.h>
 #define usleep(msec) Sleep(msec)
 #define LISTEN_PATH ":9000"
+#define SEP '\\'
 #else
 #define LISTEN_PATH "/var/tmp/luafcgid.socket"
 #endif
@@ -34,12 +37,6 @@ static const char rcsid[] = "$Id: threaded.c,v 1.9 2001/11/20 03:23:21 robs Exp 
 #define VM_COUNT 5
 
 #define CHATTER
-
-const char hello_world[] =
-    "s = 'Hello World'\n"
-    "function handler()\n"
-    "   return s\n"
-    "end\n";
 
 struct vm_pool_struct {
 	int status;
@@ -55,7 +52,7 @@ struct params_struct {
 } typedef params_t;
 
 static void *worker(void *a) {
-    int rc, i;
+    int rc, i, j, k;
     char errtype[256];
     char errmsg[1024];
 	params_t* params = (params_t*)a;
@@ -63,6 +60,9 @@ static void *worker(void *a) {
     FCGX_Request request;
     char* script = NULL;
 	lua_State* L = NULL;
+    struct stat fs;
+	FILE* fp = NULL;
+	char* fbuf = NULL;
 
 #ifdef CHATTER
     fprintf(stderr, "[%d] starting\n", params->tid);
@@ -83,35 +83,49 @@ static void *worker(void *a) {
         if (rc < 0) break;
 
 #ifdef CHATTER
-        fprintf(stderr, "\t[%d] accepting connection\n", params->tid);
-        fflush(stderr);
+//        fprintf(stderr, "\t[%d] accepting connection\n", params->tid);
+//        fflush(stderr);
 #endif
 
 		script = FCGX_GetParam("SCRIPT_FILENAME", request.envp);
+
+#ifdef SEP
+		// normalize path seperator
+		if (script) {
+			j = strlen(script);
+			for (i = 0; i < j; i++) {
+				if (script[i] == '/') script[i] = SEP;
+			}
+		}
+#endif
 
 		// default error
 		rc = LUA_ERRFILE;
 		sprintf(errmsg, "Unable to locate script '%s'", script);
 
 		// search for script
-        pthread_mutex_lock(&pool_mutex);
-		for (i = 0; i < VM_COUNT; i++) {
-			if (pool[i]->state && !(pool[i]->status)) {
-				if ((!script && !pool[i]->name) ||
-                    ((script && pool[i]->name) &&
-                    (strcmp(script, pool[i]->name) == 0))) {
-					// lock it
-					pool[i]->status = 1;
-					break;
-                }
+        j = VM_COUNT;
+        k = 2;
+		do {
+			pthread_mutex_lock(&pool_mutex);
+			for (i = 0; i < j; i++) {
+				if (pool[i]->state && !(pool[i]->status)) {
+					if ((!script && !pool[i]->name) ||
+						((script && pool[i]->name) &&
+						(strcmp(script, pool[i]->name) == 0))) {
+						// lock it
+						pool[i]->status = STATUS_BUSY;
+						break;
+					}
+				}
 			}
-		}
-		pthread_mutex_unlock(&pool_mutex);
+			pthread_mutex_unlock(&pool_mutex);
+		} while ((i == j) && (k-- > 0));
 
-		if (i < VM_COUNT) {
+		if (i < j) {
 			// found a matching state
 			L = pool[i]->state;
-			rc = 0;
+			rc = STATUS_OK;
 		} else {
 			// make a new state
 			L = lua_open();
@@ -124,40 +138,58 @@ static void *worker(void *a) {
 			}
 			luaL_openlibs(L);
 
-            // load and run chunk
-            rc = luaL_loadbuffer(L, hello_world, strlen(hello_world), "hello_world");
-            if (rc == 0) rc = lua_pcall(L, 0, 0, 0);
+            // load script, if possible
+			if (stat(script, &fs) == STATUS_OK) {
+				if(S_ISREG(fs.st_mode) && fs.st_size) {
+					fp = fopen(script, "rb");
+					if (fp) {
+						fbuf = (char*)malloc(fs.st_size);
+						memset(fbuf, 0, fs.st_size);
+						fread(fbuf, fs.st_size, 1, fp);
+						fclose(fp);
+					}
+				}
+			}
 
-			if (rc == 0) {
+            if (fbuf) {
+				// load and run buffer
+				rc = luaL_loadbuffer(L, fbuf, fs.st_size, script);
+				if (rc == STATUS_OK) rc = lua_pcall(L, 0, 0, 0);
+				// cleanup
+				free(fbuf);
+				fbuf = NULL;
+            }
+
+			if (rc == STATUS_OK) {
 			    // pick which part of the pool to use
                 pthread_mutex_lock(&pool_mutex);
                 // is there a free spot?
-                for (i = 0; i < VM_COUNT; i++) {
+                for (i = 0; i < j; i++) {
                     if (!pool[i]->status && !pool[i]->state) {
-                        pool[i]->status = 1;
+                        pool[i]->status = STATUS_BUSY;
                         break;
                     }
                 }
-                if (i == VM_COUNT) {
+                if (i == j) {
                     // time to kick someone out of the pool :(
                     // TODO: find a better way to pick a loser
                     do {
                         // search for an inactive state
-                        for (i = 0; i < VM_COUNT; i++) {
+                        for (i = 0; i < j; i++) {
                             if (!pool[i]->status) {
                                 // found one, so lock it for ourselves
-                                pool[i]->status = 1;
+                                pool[i]->status = STATUS_BUSY;
                                 break;
                             }
                         }
-                        if (i == VM_COUNT) {
+                        if (i == j) {
                             // the pool is full & everyone is busy!
                             // unlock the pool for a bit so someone else can flag out
                             pthread_mutex_unlock(&pool_mutex);
                             usleep((int)((rand() % 3) + 1));
                             pthread_mutex_lock(&pool_mutex);
                         }
-                    } while (i == VM_COUNT);
+                    } while (i == j);
     #ifdef CHATTER
                     fprintf(stderr, "\t[%d] kicked [%d] out of the pool\n", params->tid, i);
                     fflush(stderr);
@@ -181,11 +213,11 @@ static void *worker(void *a) {
                 fflush(stderr);
     #endif
             } else {
-                i = VM_COUNT;
+                i = j;
             }
 		}
 
-        if (rc == 0) {
+        if (rc == STATUS_OK) {
         	// we have a valid VM state, time to roll!
             lua_getglobal(L, "handler");
             if (lua_isfunction(L, -1)) {
@@ -204,7 +236,7 @@ static void *worker(void *a) {
         }
 
 		switch (rc) {
-			case 0:
+			case STATUS_OK:
 				errmsg[0] = '\0';
 				break;
 			case LUA_ERRFILE:
@@ -227,7 +259,7 @@ static void *worker(void *a) {
 				strcpy(errtype, "Unknown Error");
 		};
 
-        if (rc == 0) {
+        if (rc == STATUS_OK) {
             FCGX_FPrintF(request.out,
                 "Content-type: text/html\r\n"
                 "X-FastCGI-ID: %ld-%d\r\n"
@@ -245,15 +277,15 @@ static void *worker(void *a) {
                 "<title>Application Error</title>\n"
                 "<body><h2>%s</h2></body>\n"
                 "<p>%s</p>\n"
-                "</html>", errtype, params->pid, params->tid, errmsg);
+                "</html>", params->pid, params->tid, errtype, errmsg);
         }
 
         FCGX_Finish_r(&request);
 
-        if (i < VM_COUNT) {
+        if (i < j) {
             // we are done with the slot, so we shall flag out
             pthread_mutex_lock(&pool_mutex);
-            pool[i]->status = 0;
+            pool[i]->status = STATUS_OK;
             pthread_mutex_unlock(&pool_mutex);
         }
 
@@ -268,7 +300,7 @@ static void *worker(void *a) {
 
 int main(int arc, char** argv) {
 
-    int i, sock;
+    int i, j, sock;
     pid_t pid = getpid();
     pthread_t id[WORKER_COUNT];
 	params_t** params = NULL;
@@ -277,8 +309,9 @@ int main(int arc, char** argv) {
 	// alloc
 
 	// alloc VM pool
-	pool = (vm_pool_t**)malloc(sizeof(vm_pool_t*) * VM_COUNT);
-	for (i = 0; i < VM_COUNT; i++) {
+	j = VM_COUNT;
+	pool = (vm_pool_t**)malloc(sizeof(vm_pool_t*) * j);
+	for (i = 0; i < j; i++) {
 		pool[i] = (vm_pool_t*)malloc(sizeof(vm_pool_t));
 		memset(pool[i], 0, sizeof(vm_pool_t));
 	}
@@ -292,8 +325,9 @@ int main(int arc, char** argv) {
         return 1;
     }
 
-    params = (params_t**)malloc(sizeof(params_t*) * WORKER_COUNT);
-    for (i = 0; i < WORKER_COUNT; i++) {
+    j = WORKER_COUNT;
+    params = (params_t**)malloc(sizeof(params_t*) * j);
+    for (i = 0; i < j; i++) {
 		// initialize worker params
 		params[i] = (params_t*)malloc(sizeof(params_t));
 		params[i]->pid = pid;
@@ -307,15 +341,17 @@ int main(int arc, char** argv) {
 
     for (;;) {
 		// TODO: housekeeping
+		usleep(100);
     }
 
-	for (i = 0; i < WORKER_COUNT; i++) {
+	for (i = 0; i < j; i++) {
             free(params[i]);
     }
     free(params);
 
 	// dealloc VM pool
-	for (i = 0; i < VM_COUNT; i++) {
+	j = VM_COUNT;
+	for (i = 0; i < j; i++) {
 		if (pool[i]->state) lua_close(pool[i]->state);
 		if (pool[i]->name) free(pool[i]->name);
 	}
