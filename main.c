@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -21,9 +22,6 @@
 
 #include <fcgiapp.h>
 
-#define STATUS_OK 0
-#define STATUS_BUSY 1
-
 #ifdef _WIN32
 #include <windows.h>
 #define usleep(msec) Sleep(msec)
@@ -33,16 +31,47 @@
 #define LISTEN_PATH "/var/tmp/luafcgid.socket"
 #endif
 
+#define STATUS_OK 0
+#define STATUS_BUSY 1
+#define STATUS_404 LUA_ERRFILE + 1
+
 #define WORKER_COUNT 3
 #define VM_COUNT 5
+
+#define HTTP_200(stream, data) \
+    FCGX_FPrintF(stream, \
+		"Status: 200 OK\r\n" \
+		"Content-Type: text/html\r\n\r\n" \
+		"%s", data)
+#define HTTP_404(stream, filename) \
+    FCGX_FPrintF(stream, \
+		"Status: 404 Not Found\r\n" \
+		"Content-Type: text/html\r\n\r\n" \
+		"<html><head><style type='text/css'>" \
+		"body {font-family:Arial,Sans,Helv; font-size:10pt}\r\n" \
+		"h1 {color:grey}\r\npre {color:maroon}" \
+		"</style></head>\r\n" \
+		"<body><h1>404 Not Found</h1><pre>\"%s\"</pre></body></html>", filename)
+#define HTTP_500(stream, errtype, errmsg) \
+    FCGX_FPrintF(stream, \
+		"Status: 500 Internal Server Error\r\n" \
+		"Content-Type: text/html\r\n\r\n" \
+		"<html><head><style type='text/css'>" \
+		"body {font-family:Arial,Sans,Helv; font-size:10pt}\r\n" \
+		"h1 {color:grey}\r\npre {color:maroon}" \
+		"</style></head>\r\n" \
+		"<body><h1>500 Internal Server Error</h1><h2>%s</h2><pre>%s</pre></body></html>", errtype, errmsg)
 
 #define CHATTER
 
 struct vm_pool_struct {
 	int status;
 	char* name;
+	time_t load;
 	lua_State* state;
 } typedef vm_pool_t;
+
+static pthread_mutex_t pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct params_struct {
 	int pid;
@@ -64,16 +93,15 @@ static void *worker(void *a) {
 	FILE* fp = NULL;
 	char* fbuf = NULL;
 
-#ifdef CHATTER
+	#ifdef CHATTER
     fprintf(stderr, "[%d] starting\n", params->tid);
     fflush(stderr);
-#endif
+	#endif
 
     FCGX_InitRequest(&request, params->sock, 0);
 
     for (;;) {
         static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
-        static pthread_mutex_t pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 
         // use accept() serialization
         pthread_mutex_lock(&accept_mutex);
@@ -82,14 +110,14 @@ static void *worker(void *a) {
 
         if (rc < 0) break;
 
-#ifdef CHATTER
-//        fprintf(stderr, "\t[%d] accepting connection\n", params->tid);
-//        fflush(stderr);
-#endif
+		#ifdef CHATTER
+		//fprintf(stderr, "\t[%d] accepting connection\n", params->tid);
+		//fflush(stderr);
+		#endif
 
 		script = FCGX_GetParam("SCRIPT_FILENAME", request.envp);
 
-#ifdef SEP
+		#ifdef SEP
 		// normalize path seperator
 		if (script) {
 			j = strlen(script);
@@ -97,11 +125,11 @@ static void *worker(void *a) {
 				if (script[i] == '/') script[i] = SEP;
 			}
 		}
-#endif
+		#endif
 
 		// default error
-		rc = LUA_ERRFILE;
-		sprintf(errmsg, "Unable to locate script '%s'", script);
+		rc = STATUS_404;
+		errmsg[0] = '\0';
 
 		// search for script
         j = VM_COUNT;
@@ -109,10 +137,10 @@ static void *worker(void *a) {
 		do {
 			pthread_mutex_lock(&pool_mutex);
 			for (i = 0; i < j; i++) {
-				if (pool[i]->state && !(pool[i]->status)) {
+				if (pool[i]->state && !pool[i]->status) {
 					if ((!script && !pool[i]->name) ||
-						((script && pool[i]->name) &&
-						(strcmp(script, pool[i]->name) == 0))) {
+							((script && pool[i]->name) &&
+							(strcmp(script, pool[i]->name) == 0))) {
 						// lock it
 						pool[i]->status = STATUS_BUSY;
 						break;
@@ -130,10 +158,10 @@ static void *worker(void *a) {
 			// make a new state
 			L = lua_open();
 			if (!L) {
-#ifdef CHATTER
+				#ifdef CHATTER
 				fprintf(stderr, "\tunable to init lua!\n");
 				fflush(stderr);
-#endif
+				#endif
 				return NULL;
 			}
 			luaL_openlibs(L);
@@ -190,10 +218,10 @@ static void *worker(void *a) {
                             pthread_mutex_lock(&pool_mutex);
                         }
                     } while (i == j);
-    #ifdef CHATTER
+					#ifdef CHATTER
                     fprintf(stderr, "\t[%d] kicked [%d] out of the pool\n", params->tid, i);
                     fflush(stderr);
-    #endif
+					#endif
                 }
                 // 'i' should now point to a slot that is locked and free to use
                 pthread_mutex_unlock(&pool_mutex);
@@ -208,10 +236,11 @@ static void *worker(void *a) {
                     pool[i]->name = NULL;
                 }
                 pool[i]->state = L;
-    #ifdef CHATTER
+                pool[i]->load = time(NULL);
+				#ifdef CHATTER
                 fprintf(stderr, "\t[%d] loaded '%s' into [%d]\n", params->tid, script, i);
                 fflush(stderr);
-    #endif
+				#endif
             } else {
                 i = j;
             }
@@ -237,7 +266,6 @@ static void *worker(void *a) {
 
 		switch (rc) {
 			case STATUS_OK:
-				errmsg[0] = '\0';
 				break;
 			case LUA_ERRFILE:
 				strcpy(errtype, "File Error");
@@ -260,24 +288,12 @@ static void *worker(void *a) {
 		};
 
         if (rc == STATUS_OK) {
-            FCGX_FPrintF(request.out,
-                "Content-type: text/html\r\n"
-                "X-FastCGI-ID: %ld-%d\r\n"
-                "\r\n<html>\n"
-                "<title>Test App</title>\n"
-                "<body><h2>Success</h2></body>\n"
-                "<p>%s</p>\n"
-                "</html>", params->pid, params->tid, lua_tostring(L, -1));
-                lua_pop(L, 1);
+            HTTP_200(request.out, lua_tostring(L, -1));
+			lua_pop(L, 1);
+        } else if (rc == STATUS_404) {
+			HTTP_404(request.out, script);
         } else {
-            FCGX_FPrintF(request.out,
-                "Content-type: text/html\r\n"
-                "X-FastCGI-ID: %ld-%d\r\n"
-                "\r\n<html>\n"
-                "<title>Application Error</title>\n"
-                "<body><h2>%s</h2></body>\n"
-                "<p>%s</p>\n"
-                "</html>", params->pid, params->tid, errtype, errmsg);
+            HTTP_500(request.out, errtype, errmsg);
         }
 
         FCGX_Finish_r(&request);
@@ -305,6 +321,7 @@ int main(int arc, char** argv) {
     pthread_t id[WORKER_COUNT];
 	params_t** params = NULL;
 	vm_pool_t** pool = NULL;
+    struct stat fs;
 
 	// alloc
 
@@ -340,8 +357,29 @@ int main(int arc, char** argv) {
     }
 
     for (;;) {
-		// TODO: housekeeping
-		usleep(100);
+    	// chill
+		usleep(1000);
+		// housekeeping
+        pthread_mutex_lock(&pool_mutex);
+		for (i = 0; i < VM_COUNT; i++) {
+			// check for stale moon chips
+			if (pool[i]->state && pool[i]->name && !pool[i]->status) {
+				if ((stat(pool[i]->name, &fs) == STATUS_OK) &&
+						(fs.st_mtime > pool[i]->load)) {
+					// shut it down
+					lua_close(pool[i]->state);
+					// sweep it up
+					free(pool[i]->name);
+					pool[i]->state = NULL;
+					pool[i]->name = NULL;
+					#ifdef CHATTER
+					fprintf(stderr, "[%d] has gone stale\n", i);
+					fflush(stderr);
+					#endif
+				}
+			}
+		}
+        pthread_mutex_unlock(&pool_mutex);
     }
 
 	for (i = 0; i < j; i++) {
