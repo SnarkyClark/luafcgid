@@ -96,11 +96,11 @@ minimum of fuss.
                        +-->| worker thread |--+              +-------------+
  +------------------+  |   +---------------+  |              |   scripts   |
  | luafcgid process |--+                      +---- mutex -->| loaded into |
- +------------------+  |   +---------------+  |       ^      |  Lua states |
+ +------------------+  |   +---------------+  |       |      |  Lua states |
             |          +-->| worker thread |--+       |      +-------------+
             |              +---------------+          |                
             |                                         |             
-			+--------------- housekeeping ------------+             
+            +--------------- housekeeping ------------+             
 			
 Lua is then introduced into the picture by created a shared Lua state for each 
 Lua script that is requested. A script can also be loaded into more then one 
