@@ -60,6 +60,29 @@ FreeBSD:
 * www/fcgi
 # gmake install clean
 
+Windows:
+
+(optional) open luafcgid.cbp in code::blocks, compile
+copy all files in bin/Release dir to destination dir
+
+Webserver (nginx):
+
+add the following lines to your server{} section:
+   
+   location ~ \.lua$ {
+	  
+	  # for Windows
+      fastcgi_pass   127.0.0.1:9000;
+	  
+	  # for BSD/Linux/MacOSX
+      fastcgi_pass   unix:/var/tmp/luafcgid.socket;
+      
+	  fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+      include        fastcgi_params;
+   }
+
+(make sure your root directive is set correctly)
+   
 ---
 DESIGN
 ---
@@ -82,7 +105,7 @@ Lua is then introduced into the picture by created a shared Lua state for each
 Lua script that is requested. This setup is inspired by the 'mod_wombat' 
 project. A state is initialized and loaded with the script, and is kept 
 in memory for as long as possible. This allows for persistence across HTTP 
-requests. Each Lua VM is run WITHIN THE WORKER THREAD that needs it. There is
+requests. Each Lua VM is run WITHIN THE WORKER THREAD as needed. There is
 a configurable limit to the total number of Lua states that luafcgid will 
 maintain. When this limit is reached, popularity and aging are used to decide
 which states to flush and reload with a new script.
