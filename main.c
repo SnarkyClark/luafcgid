@@ -24,11 +24,13 @@
 
 #define CHATTER
 
-char* load_script(const char* fn, struct stat* fs) {
+char* script_load(const char* fn, struct stat* fs) {
 	FILE* fp = NULL;
 	char* fbuf = NULL;
 
+	// does it even exist?
 	if (stat(fn, fs) == STATUS_OK) {
+		// is it a file of more then 0 bytes?
 		if(S_ISREG(fs->st_mode) && fs->st_size) {
 			fp = fopen(fn, "rb");
 			if (fp) {
@@ -41,6 +43,26 @@ char* load_script(const char* fn, struct stat* fs) {
 	}
 
 	return fbuf;
+}
+
+void pool_load(vm_pool_t *p, lua_State* L, char* name) {
+	// toss the Lua state into the pool slot
+	p->state = L;
+	// slap a label on it
+	if (name) {
+		p->name = (char*)malloc(strlen(name) + 1);
+		strcpy(p->name, name);
+	}
+	// timestamp for aging
+	p->load = time(NULL);
+}
+
+void pool_flush(vm_pool_t* p) {
+	// shut it down
+	if(p->state) lua_close(p->state);
+	// sweep it up
+	if(p->name) free(p->name);
+	memset(p, 0, sizeof(vm_pool_t));
 }
 
 static void *worker(void *a) {
@@ -110,7 +132,7 @@ static void *worker(void *a) {
 				}
 			}
 			pthread_mutex_unlock(&pool_mutex);
-		} while ((i == j) && (k-- > 0));
+		} while ((i == j) && (--k > 0));
 
 		if (i < j) {
 			// found a matching state
@@ -128,7 +150,7 @@ static void *worker(void *a) {
 			}
 			luaL_openlibs(L);
 
-			fbuf = load_script(script, &fs);
+			fbuf = script_load(script, &fs);
 
             if (fbuf) {
 				// load and run buffer
@@ -175,18 +197,9 @@ static void *worker(void *a) {
                 }
                 // 'i' should now point to a slot that is locked and free to use
                 pthread_mutex_unlock(&pool_mutex);
-                // shut it down if needed
-                if (pool[i]->state) lua_close(pool[i]->state);
-                if (pool[i]->name) free(pool[i]->name);
-                // toss the Lua state into the pool
-                if (script) {
-                    pool[i]->name = (char*)malloc(strlen(script) + 1);
-                    strcpy(pool[i]->name, script);
-                } else {
-                    pool[i]->name = NULL;
-                }
-                pool[i]->state = L;
-                pool[i]->load = time(NULL);
+                // scrub it clean and load it up
+                pool_flush(pool[i]);
+                pool_load(pool[i], L, script);
 				#ifdef CHATTER
                 fprintf(stderr, "\t[%d] loaded '%s' into [%d]\n", params->tid, script, i);
                 fflush(stderr);
@@ -318,12 +331,7 @@ int main(int arc, char** argv) {
 			if (pool[i]->state && pool[i]->name && !pool[i]->status) {
 				if ((stat(pool[i]->name, &fs) == STATUS_OK) &&
 						(fs.st_mtime > pool[i]->load)) {
-					// shut it down
-					lua_close(pool[i]->state);
-					// sweep it up
-					free(pool[i]->name);
-					pool[i]->state = NULL;
-					pool[i]->name = NULL;
+					pool_flush(pool[i]);
 					#ifdef CHATTER
 					fprintf(stderr, "[%d] has gone stale\n", i);
 					fflush(stderr);
@@ -341,11 +349,12 @@ int main(int arc, char** argv) {
 
 	// dealloc VM pool
 	j = VM_COUNT;
+    pthread_mutex_lock(&pool_mutex);
 	for (i = 0; i < j; i++) {
-		if (pool[i]->state) lua_close(pool[i]->state);
-		if (pool[i]->name) free(pool[i]->name);
+		pool_flush(pool[i]);
 	}
 	free(pool);
+    pthread_mutex_unlock(&pool_mutex);
 
 	return 0;
 }

@@ -77,4 +77,8 @@ struct params_struct {
 	vm_pool_t** pool;
 } typedef params_t;
 
+char* script_load(const char* fn, struct stat* fs);
+void pool_load(vm_pool_t *p, lua_State* L, char* name);
+void pool_flush(vm_pool_t* p);
+
 #endif // MAIN_H_INCLUDED
