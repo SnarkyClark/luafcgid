@@ -61,6 +61,11 @@
 #define LUA_ERRMEM_STR "Memory Error"
 #define ERRUNKNOWN_STR "Unknown Error"
 
+#define HOOK_HOUSEKEEPING 0
+#define HOOK_STARTUP 1
+#define HOOK_SHUTDOWN 2
+#define HOOK_COUNT 3
+
 struct vm_pool_struct {
 	int status;
 	char* name;
@@ -68,25 +73,24 @@ struct vm_pool_struct {
 	lua_State* state;
 } typedef vm_pool_t;
 
-struct params_struct {
-	int pid;
-	int tid;
-	int sock;
-	vm_pool_t** pool;
-} typedef params_t;
-
 struct hook_struct {
 	int count;
 	char** chunk;
 } typedef hook_t;
 
 struct config_struct {
-	int worker_count;
-	int vm_count;
-	hook_t housekeeping;
-	hook_t startup;
-	hook_t shutdown;
+	int workers;
+	int states;
+	hook_t** hook;
 } typedef config_t;
+
+struct params_struct {
+	int pid;
+	int tid;
+	int sock;
+	config_t* conf;
+	vm_pool_t** pool;
+} typedef params_t;
 
 char* script_load(const char* fn, struct stat* fs);
 void pool_load(vm_pool_t *p, lua_State* L, char* name);

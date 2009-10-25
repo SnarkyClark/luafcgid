@@ -26,17 +26,22 @@
 
 static pthread_mutex_t pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-const char config_default[] =
-	"worker_count = 3\n"
-	"state_count = 5\n"
-	"housekeeping_hooks = {}\n"
-	"startup_hooks = {}\n"
-	"shutdown_hooks = {}\n";
-
 int luaL_getglobal_int(lua_State* L, const char* name) {
+	int r = 0;
 	lua_getglobal(L, name);
-	if (!lua_isnumber(L, -2))
+	if (!lua_isnumber(L, -1)) {
+        // TODO
+	}
+	return r;
+}
 
+char* luaL_getglobal_str(lua_State* L, const char* name) {
+	char* r = NULL;
+	lua_getglobal(L, name);
+	if (!lua_isstring(L, -1)) {
+        // TODO
+	}
+	return r;
 }
 
 char* script_load(const char* fn, struct stat* fs) {
@@ -61,30 +66,38 @@ char* script_load(const char* fn, struct stat* fs) {
 }
 
 config_t* config_load(const char* fn) {
+	int i, rc;
 	struct stat fs;
 	char* fbuf = NULL;
+	lua_State* L = NULL;
 
-	fbuf = script_load(fn, &fs);
+    config_t* cf = (config_t*)malloc(sizeof(config_t));
+    memset(cf, 0, sizeof(config_t));
 
+	// defaults
+    cf->workers = 3;
+    cf->states = 5;
+    cf->hook = (hook_t**)malloc(sizeof(hook_t*) * HOOK_COUNT);
+    for (i = 0; i < HOOK_COUNT; i++) cf->hook[i] = NULL;
+
+    if (fn) fbuf = script_load(fn, &fs);
 	if (fbuf) {
-		// make a new state
-		L = lua_open();
-		if (!L) return NULL;
-		luaL_openlibs(L);
+        // make a new state
+        L = lua_open();
+        if (!L) return NULL;
+        luaL_openlibs(L);
 		// load and run buffer
-		rc = luaL_loadbuffer(L, fbuf, fs.st_size, script);
+		rc = luaL_loadbuffer(L, fbuf, fs.st_size, fn);
 		if (rc == STATUS_OK) rc = lua_pcall(L, 0, 0, 0);
 		// cleanup
 		free(fbuf);
 		if (rc == STATUS_OK) {
 			// transfer globals to config struct
-			config_t* cf = (config_t*)malloc(sizeof(config_t));
-			memset(cf, 0, sizeof(config_t));
-
 			// TODO
-			return cf;
 		}
+		lua_close(L);
 	}
+	return cf;
 }
 
 void pool_load(vm_pool_t *p, lua_State* L, char* name) {
@@ -333,8 +346,9 @@ int main(int arc, char** argv) {
 	params_t** params = NULL;
 	vm_pool_t** pool = NULL;
     struct stat fs;
+    config_t* conf = NULL;
 
-	// alloc
+    conf = config_load(NULL);
 
 	// alloc VM pool
 	j = VM_COUNT;
@@ -362,6 +376,7 @@ int main(int arc, char** argv) {
 		params[i]->tid = i;
 		params[i]->sock = sock;
 		params[i]->pool = pool;
+		params[i]->conf = conf;
 		// create worker thread
         pthread_create(&id[i], NULL, worker, (void*)params[i]);
         usleep(10);
@@ -402,6 +417,18 @@ int main(int arc, char** argv) {
 	}
 	free(pool);
     pthread_mutex_unlock(&pool_mutex);
+
+    // dealloc config
+    for (i = 0; i < HOOK_COUNT; i++) {
+        if (conf->hook[i]) {
+            for (j = 0; j < conf->hook[i]->count; j++) {
+                if (conf->hook[i]->chunk[j]) free(conf->hook[i]->chunk[j]);
+            }
+            free(conf->hook[i]);
+        }
+    }
+    free(conf->hook);
+    free(conf);
 
 	return 0;
 }
