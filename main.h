@@ -11,6 +11,18 @@
 #define SEP '\\'
 #endif
 
+#ifndef BOOL
+#define BOOL int
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+
 #define LISTEN_PATH ":9000"
 
 #define STATUS_OK 0

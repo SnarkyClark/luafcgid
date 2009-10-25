@@ -44,7 +44,7 @@ BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v) {
         	if (*v) free(*v);
         	*v = (char*)malloc(l + 1);
         	strncpy(*v, r, l);
-        	*v[l] = '\0';
+        	(*v)[l] = '\0';
 			lua_pop(L, 1);
         	return TRUE;
         }
@@ -84,7 +84,7 @@ config_t* config_load(const char* fn) {
     memset(cf, 0, sizeof(config_t));
 
 	// defaults
-	cf->listen = (char*)malloc(strlen(LISTEN_PATH));
+	cf->listen = (char*)malloc(strlen(LISTEN_PATH) + 1);
 	strcpy(cf->listen, LISTEN_PATH);
     cf->workers = 3;
     cf->states = 5;
@@ -372,7 +372,7 @@ int main(int arc, char** argv) {
 
     FCGX_Init();
 
-	sock = FCGX_OpenSocket(LISTEN_PATH, 100);
+	sock = FCGX_OpenSocket(conf->listen, 100);
     if (!sock) {
         fprintf(stderr, "\tunable to create accept socket!\n");
         fflush(stderr);
