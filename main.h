@@ -8,11 +8,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #define usleep(msec) Sleep(msec)
-#define LISTEN_PATH ":9000"
 #define SEP '\\'
-#else
-#define LISTEN_PATH "/var/tmp/luafcgid.socket"
 #endif
+
+#define LISTEN_PATH ":9000"
 
 #define STATUS_OK 0
 #define STATUS_BUSY 1
@@ -79,17 +78,20 @@ struct hook_struct {
 } typedef hook_t;
 
 struct config_struct {
+	char* listen;
 	int workers;
 	int states;
-	hook_t** hook;
+	int sweep;
+	int retries;
+	hook_t* hook[HOOK_COUNT];
 } typedef config_t;
 
 struct params_struct {
 	int pid;
 	int tid;
 	int sock;
-	config_t* conf;
-	vm_pool_t** pool;
+	const config_t* conf;
+	vm_pool_t* pool;
 } typedef params_t;
 
 char* script_load(const char* fn, struct stat* fs);

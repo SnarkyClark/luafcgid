@@ -19,29 +19,38 @@
 
 #include "main.h"
 
-#define WORKER_COUNT 3
-#define VM_COUNT 5
-
 #define CHATTER
 
 static pthread_mutex_t pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-int luaL_getglobal_int(lua_State* L, const char* name) {
-	int r = 0;
+BOOL luaL_getglobal_int(lua_State* L, const char* name, int* v) {
 	lua_getglobal(L, name);
-	if (!lua_isnumber(L, -1)) {
-        // TODO
+	if (lua_isnumber(L, -1)) {
+        *v = lua_tointeger(L, -1);
+        lua_pop(L, 1);
+        return TRUE;
 	}
-	return r;
+    lua_pop(L, 1);
+	return FALSE;
 }
 
-char* luaL_getglobal_str(lua_State* L, const char* name) {
-	char* r = NULL;
+BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v) {
+	const char* r = NULL;
+	size_t l = 0;
 	lua_getglobal(L, name);
-	if (!lua_isstring(L, -1)) {
-        // TODO
+	if (lua_isstring(L, -1)) {
+        r = lua_tolstring(L, -1, &l);
+        if (r && l) {
+        	if (*v) free(*v);
+        	*v = (char*)malloc(l + 1);
+        	strncpy(*v, r, l);
+        	*v[l] = '\0';
+			lua_pop(L, 1);
+        	return TRUE;
+        }
 	}
-	return r;
+    lua_pop(L, 1);
+	return FALSE;
 }
 
 char* script_load(const char* fn, struct stat* fs) {
@@ -66,7 +75,7 @@ char* script_load(const char* fn, struct stat* fs) {
 }
 
 config_t* config_load(const char* fn) {
-	int i, rc;
+	int rc;
 	struct stat fs;
 	char* fbuf = NULL;
 	lua_State* L = NULL;
@@ -75,10 +84,12 @@ config_t* config_load(const char* fn) {
     memset(cf, 0, sizeof(config_t));
 
 	// defaults
+	cf->listen = (char*)malloc(strlen(LISTEN_PATH));
+	strcpy(cf->listen, LISTEN_PATH);
     cf->workers = 3;
     cf->states = 5;
-    cf->hook = (hook_t**)malloc(sizeof(hook_t*) * HOOK_COUNT);
-    for (i = 0; i < HOOK_COUNT; i++) cf->hook[i] = NULL;
+    cf->sweep = 1000;
+    cf->retries = 1;
 
     if (fn) fbuf = script_load(fn, &fs);
 	if (fbuf) {
@@ -93,6 +104,10 @@ config_t* config_load(const char* fn) {
 		free(fbuf);
 		if (rc == STATUS_OK) {
 			// transfer globals to config struct
+			luaL_getglobal_str(L, "listen", &cf->listen);
+			luaL_getglobal_int(L, "workers", &cf->workers);
+			luaL_getglobal_int(L, "states", &cf->states);
+			luaL_getglobal_int(L, "sweep", &cf->sweep);
 			// TODO
 		}
 		lua_close(L);
@@ -128,7 +143,8 @@ static void *worker(void *a) {
     char errtype[256];
     char errmsg[1024];
 	params_t* params = (params_t*)a;
-	vm_pool_t** pool = params->pool;
+	const config_t* conf = params->conf;
+	vm_pool_t* pool = params->pool;
     FCGX_Request request;
     char* script = NULL;
 	lua_State* L = NULL;
@@ -174,17 +190,17 @@ static void *worker(void *a) {
 		errmsg[0] = '\0';
 
 		// search for script
-        j = VM_COUNT;
-        k = 2;
+        j = conf->states;
+        k = conf->retries + 1;
 		do {
 			pthread_mutex_lock(&pool_mutex);
 			for (i = 0; i < j; i++) {
-				if (pool[i]->state && !pool[i]->status) {
-					if ((!script && !pool[i]->name) ||
-							((script && pool[i]->name) &&
-							(strcmp(script, pool[i]->name) == 0))) {
+				if (pool[i].state && !pool[i].status) {
+					if ((!script && !pool[i].name) ||
+							((script && pool[i].name) &&
+							(strcmp(script, pool[i].name) == 0))) {
 						// lock it
-						pool[i]->status = STATUS_BUSY;
+						pool[i].status = STATUS_BUSY;
 						break;
 					}
 				}
@@ -194,7 +210,7 @@ static void *worker(void *a) {
 
 		if (i < j) {
 			// found a matching state
-			L = pool[i]->state;
+			L = pool[i].state;
 			rc = STATUS_OK;
 		} else {
 			// make a new state
@@ -224,8 +240,8 @@ static void *worker(void *a) {
                 pthread_mutex_lock(&pool_mutex);
                 // is there a free spot?
                 for (i = 0; i < j; i++) {
-                    if (!pool[i]->status && !pool[i]->state) {
-                        pool[i]->status = STATUS_BUSY;
+                    if (!pool[i].status && !pool[i].state) {
+                        pool[i].status = STATUS_BUSY;
                         break;
                     }
                 }
@@ -235,9 +251,9 @@ static void *worker(void *a) {
                     do {
                         // search for an inactive state
                         for (i = 0; i < j; i++) {
-                            if (!pool[i]->status) {
+                            if (!pool[i].status) {
                                 // found one, so lock it for ourselves
-                                pool[i]->status = STATUS_BUSY;
+                                pool[i].status = STATUS_BUSY;
                                 break;
                             }
                         }
@@ -257,8 +273,8 @@ static void *worker(void *a) {
                 // 'i' should now point to a slot that is locked and free to use
                 pthread_mutex_unlock(&pool_mutex);
                 // scrub it clean and load it up
-                pool_flush(pool[i]);
-                pool_load(pool[i], L, script);
+                pool_flush(&pool[i]);
+                pool_load(&pool[i], L, script);
 				#ifdef CHATTER
                 fprintf(stderr, "\t[%d] loaded '%s' into [%d]\n", params->tid, script, i);
                 fflush(stderr);
@@ -325,7 +341,7 @@ static void *worker(void *a) {
         if (i < j) {
             // we are done with the slot, so we shall flag out
             pthread_mutex_lock(&pool_mutex);
-            pool[i]->status = STATUS_OK;
+            pool[i].status = STATUS_OK;
             pthread_mutex_unlock(&pool_mutex);
         }
 
@@ -342,20 +358,16 @@ int main(int arc, char** argv) {
 
     int i, j, sock;
     pid_t pid = getpid();
-    pthread_t id[WORKER_COUNT];
-	params_t** params = NULL;
-	vm_pool_t** pool = NULL;
+    pthread_t* id = NULL;
+	params_t* params = NULL;
+	vm_pool_t* pool = NULL;
     struct stat fs;
     config_t* conf = NULL;
 
-    conf = config_load(NULL);
-
-	// alloc VM pool
-	j = VM_COUNT;
-	pool = (vm_pool_t**)malloc(sizeof(vm_pool_t*) * j);
-	for (i = 0; i < j; i++) {
-		pool[i] = (vm_pool_t*)malloc(sizeof(vm_pool_t));
-		memset(pool[i], 0, sizeof(vm_pool_t));
+	if (arc > 1 && argv[1]) {
+		conf = config_load(argv[1]);
+	} else {
+		conf = config_load("config.lua");
 	}
 
     FCGX_Init();
@@ -367,32 +379,39 @@ int main(int arc, char** argv) {
         return 1;
     }
 
-    j = WORKER_COUNT;
-    params = (params_t**)malloc(sizeof(params_t*) * j);
+	// alloc VM pool
+	j = conf->states;
+	pool = (vm_pool_t*)malloc(sizeof(vm_pool_t) * j);
+	memset(pool, 0, sizeof(vm_pool_t) * j);
+
+    // alloc worker data
+    j = conf->workers;
+	id = (pthread_t*)malloc(sizeof(pthread_t) * j);
+    params = (params_t*)malloc(sizeof(params_t) * j);
+
     for (i = 0; i < j; i++) {
 		// initialize worker params
-		params[i] = (params_t*)malloc(sizeof(params_t));
-		params[i]->pid = pid;
-		params[i]->tid = i;
-		params[i]->sock = sock;
-		params[i]->pool = pool;
-		params[i]->conf = conf;
+		params[i].pid = pid;
+		params[i].tid = i;
+		params[i].sock = sock;
+		params[i].pool = pool;
+		params[i].conf = conf;
 		// create worker thread
-        pthread_create(&id[i], NULL, worker, (void*)params[i]);
+        pthread_create(&id[i], NULL, worker, (void*)&params[i]);
         usleep(10);
     }
 
     for (;;) {
-    	// chill
-		usleep(1000);
+    	// chill till the next sweep
+		usleep(conf->sweep);
 		// housekeeping
         pthread_mutex_lock(&pool_mutex);
-		for (i = 0; i < VM_COUNT; i++) {
+		for (i = 0; i < conf->states; i++) {
 			// check for stale moon chips
-			if (pool[i]->state && pool[i]->name && !pool[i]->status) {
-				if ((stat(pool[i]->name, &fs) == STATUS_OK) &&
-						(fs.st_mtime > pool[i]->load)) {
-					pool_flush(pool[i]);
+			if (pool[i].state && pool[i].name && !pool[i].status) {
+				if ((stat(pool[i].name, &fs) == STATUS_OK) &&
+						(fs.st_mtime > pool[i].load)) {
+					pool_flush(&pool[i]);
 					#ifdef CHATTER
 					fprintf(stderr, "[%d] has gone stale\n", i);
 					fflush(stderr);
@@ -404,21 +423,18 @@ int main(int arc, char** argv) {
         // TODO: run housekeeping hook
     }
 
-	for (i = 0; i < j; i++) {
-            free(params[i]);
-    }
     free(params);
+	free(id);
 
 	// dealloc VM pool
-	j = VM_COUNT;
+	j = conf->states;
     pthread_mutex_lock(&pool_mutex);
-	for (i = 0; i < j; i++) {
-		pool_flush(pool[i]);
-	}
+	for (i = 0; i < j; i++) pool_flush(&pool[i]);
 	free(pool);
     pthread_mutex_unlock(&pool_mutex);
 
     // dealloc config
+    if (conf->listen) free(conf->listen);
     for (i = 0; i < HOOK_COUNT; i++) {
         if (conf->hook[i]) {
             for (j = 0; j < conf->hook[i]->count; j++) {
