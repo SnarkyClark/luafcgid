@@ -24,6 +24,21 @@
 
 #define CHATTER
 
+static pthread_mutex_t pool_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+const char config_default[] =
+	"worker_count = 3\n"
+	"state_count = 5\n"
+	"housekeeping_hooks = {}\n"
+	"startup_hooks = {}\n"
+	"shutdown_hooks = {}\n";
+
+int luaL_getglobal_int(lua_State* L, const char* name) {
+	lua_getglobal(L, name);
+	if (!lua_isnumber(L, -2))
+
+}
+
 char* script_load(const char* fn, struct stat* fs) {
 	FILE* fp = NULL;
 	char* fbuf = NULL;
@@ -45,6 +60,33 @@ char* script_load(const char* fn, struct stat* fs) {
 	return fbuf;
 }
 
+config_t* config_load(const char* fn) {
+	struct stat fs;
+	char* fbuf = NULL;
+
+	fbuf = script_load(fn, &fs);
+
+	if (fbuf) {
+		// make a new state
+		L = lua_open();
+		if (!L) return NULL;
+		luaL_openlibs(L);
+		// load and run buffer
+		rc = luaL_loadbuffer(L, fbuf, fs.st_size, script);
+		if (rc == STATUS_OK) rc = lua_pcall(L, 0, 0, 0);
+		// cleanup
+		free(fbuf);
+		if (rc == STATUS_OK) {
+			// transfer globals to config struct
+			config_t* cf = (config_t*)malloc(sizeof(config_t));
+			memset(cf, 0, sizeof(config_t));
+
+			// TODO
+			return cf;
+		}
+	}
+}
+
 void pool_load(vm_pool_t *p, lua_State* L, char* name) {
 	// toss the Lua state into the pool slot
 	p->state = L;
@@ -59,7 +101,10 @@ void pool_load(vm_pool_t *p, lua_State* L, char* name) {
 
 void pool_flush(vm_pool_t* p) {
 	// shut it down
-	if(p->state) lua_close(p->state);
+	if(p->state) {
+		lua_close(p->state);
+        // TODO: run state shutdown hook
+	}
 	// sweep it up
 	if(p->name) free(p->name);
 	memset(p, 0, sizeof(vm_pool_t));
@@ -153,6 +198,7 @@ static void *worker(void *a) {
 			fbuf = script_load(script, &fs);
 
             if (fbuf) {
+       	        // TODO: run state startup hook
 				// load and run buffer
 				rc = luaL_loadbuffer(L, fbuf, fs.st_size, script);
 				if (rc == STATUS_OK) rc = lua_pcall(L, 0, 0, 0);
@@ -340,6 +386,7 @@ int main(int arc, char** argv) {
 			}
 		}
         pthread_mutex_unlock(&pool_mutex);
+        // TODO: run housekeeping hook
     }
 
 	for (i = 0; i < j; i++) {

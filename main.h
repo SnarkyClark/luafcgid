@@ -68,14 +68,25 @@ struct vm_pool_struct {
 	lua_State* state;
 } typedef vm_pool_t;
 
-static pthread_mutex_t pool_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 struct params_struct {
 	int pid;
 	int tid;
 	int sock;
 	vm_pool_t** pool;
 } typedef params_t;
+
+struct hook_struct {
+	int count;
+	char** chunk;
+} typedef hook_t;
+
+struct config_struct {
+	int worker_count;
+	int vm_count;
+	hook_t housekeeping;
+	hook_t startup;
+	hook_t shutdown;
+} typedef config_t;
 
 char* script_load(const char* fn, struct stat* fs);
 void pool_load(vm_pool_t *p, lua_State* L, char* name);
