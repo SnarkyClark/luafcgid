@@ -94,7 +94,11 @@ struct params_struct {
 	vm_pool_t* pool;
 } typedef params_t;
 
+BOOL luaL_getglobal_int(lua_State* L, const char* name, int* v);
+BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v);
+
 char* script_load(const char* fn, struct stat* fs);
+config_t* config_load(const char* fn);
 void pool_load(vm_pool_t *p, lua_State* L, char* name);
 void pool_flush(vm_pool_t* p);
 
