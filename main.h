@@ -1,9 +1,14 @@
 #ifndef MAIN_H_INCLUDED
 #define MAIN_H_INCLUDED
 
+#define LUAFCGID_VERSION 1
+
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+
+#define lua_boxpointer(L,u) (*(void **)(lua_newuserdata(L, sizeof(void *))) = (u))
+#define lua_unboxpointer(L,i) (*(void **)(lua_touserdata(L, i)))
 
 #ifdef _WIN32
 #include <windows.h>
@@ -95,6 +100,7 @@ struct config_struct {
 	int states;
 	int sweep;
 	int retries;
+	int maxpost;
 	hook_t* hook[HOOK_COUNT];
 } typedef config_t;
 
@@ -106,6 +112,12 @@ struct params_struct {
 	vm_pool_t* pool;
 } typedef params_t;
 
+struct request_struct {
+    FCGX_Request fcgi;
+    const config_t* conf;
+    BOOL headers_sent;
+} typedef request_t;
+
 BOOL luaL_getglobal_int(lua_State* L, const char* name, int* v);
 BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v);
 
@@ -113,5 +125,8 @@ char* script_load(const char* fn, struct stat* fs);
 config_t* config_load(const char* fn);
 void pool_load(vm_pool_t *p, lua_State* L, char* name);
 void pool_flush(vm_pool_t* p);
+
+int req_gets(lua_State *L);
+int req_puts(lua_State *L);
 
 #endif // MAIN_H_INCLUDED

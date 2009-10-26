@@ -21,6 +21,37 @@
 
 #define CHATTER
 
+const char* env_var[] = {
+    // standard CGI environment variables as per CGI Specification 1.1
+    "SERVER_SOFTWARE",
+    "SERVER_NAME",
+    "GATEWAY_INTERFACE",
+    "SERVER_PROTOCOL",
+    "SERVER_PORT",
+    "REQUEST_METHOD",
+    "PATH_INFO",
+    "PATH_TRANSLATED",
+    "SCRIPT_NAME",
+    "QUERY_STRING",
+    "REMOTE_HOST",
+    "REMOTE_ADDR",
+    "AUTH_TYPE",
+    "REMOTE_USER",
+    "REMOTE_IDENT",
+    "CONTENT_TYPE",
+    "CONTENT_LENGTH", // WARNING! do NOT rely on this value
+    // common client variables
+    "HTTP_ACCEPT",
+    "HTTP_USER_AGENT",
+    NULL,
+};
+
+static const struct luaL_Reg request_methods[] = {
+    {"gets", req_gets},
+    {"puts", req_puts},
+    {NULL, NULL}
+};
+
 static pthread_mutex_t pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 BOOL luaL_getglobal_int(lua_State* L, const char* name, int* v) {
@@ -53,6 +84,97 @@ BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v) {
 	return FALSE;
 }
 
+void luaL_pushcgienv(lua_State* L, request_t* r) {
+    int i = 0;
+    char* v = NULL;
+    lua_newtable(L);
+    lua_pushinteger(L, LUAFCGID_VERSION);
+    lua_setfield(L, -2, "LUAFCGID_VERSION");
+    while(env_var[i]) {
+        v = FCGX_GetParam(env_var[i], r->fcgi.envp);
+        if (v) {
+            lua_pushstring(L, env_var[i]);
+            lua_pushstring(L, v);
+            lua_settable(L, -3);
+        }
+        i++;
+    }
+}
+
+void luaL_pushcgicontent(lua_State* L, request_t* r) {
+    char* buf = NULL;
+    int size = r->conf->maxpost;
+    size_t len = size;
+    char* slen = FCGX_GetParam("CONTENT_LENGTH", r->fcgi.envp);
+
+    // check if content length is provided
+    if (slen) len = atoi(slen);
+    if (len > size) len = size;
+    // alloc and zero buffer
+    buf = (char*)malloc(len);
+    memset(buf, 0, len);
+    // load and push buffer
+    FCGX_GetStr(buf, len, r->fcgi.in);
+    lua_pushlstring(L, buf, len);
+    free(buf);
+}
+
+request_t* luaL_checkrequest(lua_State* L, int i) {
+    luaL_checkudata(L, i, "LuaFCGId.Request");
+    request_t* r = (request_t*)lua_unboxpointer(L, i);
+    return r;
+}
+
+void luaL_loadrequest(lua_State* L) {
+    luaL_newmetatable(L, "LuaFCGId.Request");
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    luaL_register(L, NULL, request_methods);
+    lua_pop(L, 2);
+}
+
+void luaL_pushrequest(lua_State* L, request_t* r) {
+    lua_boxpointer(L, r);
+    luaL_getmetatable(L, "LuaFCGId.Request");
+    lua_setmetatable(L, -2);
+    //luaL_getmetatable(L, "FCGX.Request");
+    //luaL_pushcgienv(L, r);
+    //lua_setfield(L, -2, "env");
+    //lua_pop(L, 1);
+}
+
+int req_puts(lua_State *L) {
+    request_t* r = NULL;
+    const char* s = NULL;
+    size_t l = 0;
+    if (lua_gettop(L) >= 2) {
+        r = luaL_checkrequest(L, 1);
+        luaL_checkstring(L, 2);
+        s = lua_tolstring(L, 2, &l);
+        if(!r->headers_sent) {
+            // TODO: allow custom mime type
+            FCGX_FPrintF(r->fcgi.out,
+                "Status: 200 OK\r\n"
+                "Content-Type: text/html\r\n\r\n"
+            );
+            r->headers_sent = TRUE;
+        }
+        FCGX_PutStr(s, l, r->fcgi.out);
+    }
+    return 0;
+}
+
+int req_gets(lua_State *L) {
+    request_t* r = NULL;
+    if (lua_gettop(L)) {
+        r = luaL_checkrequest(L, 1);
+        luaL_pushcgicontent(L, r);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
 char* script_load(const char* fn, struct stat* fs) {
 	FILE* fp = NULL;
 	char* fbuf = NULL;
@@ -60,7 +182,7 @@ char* script_load(const char* fn, struct stat* fs) {
 	// does it even exist?
 	if (stat(fn, fs) == STATUS_OK) {
 		// is it a file of more then 0 bytes?
-		if(S_ISREG(fs->st_mode) && fs->st_size) {
+		if (S_ISREG(fs->st_mode) && fs->st_size) {
 			fp = fopen(fn, "rb");
 			if (fp) {
 				fbuf = (char*)malloc(fs->st_size);
@@ -90,6 +212,7 @@ config_t* config_load(const char* fn) {
     cf->states = 5;
     cf->sweep = 1000;
     cf->retries = 1;
+    cf->maxpost = 1024 * 1024;
 
     if (fn) fbuf = script_load(fn, &fs);
 	if (fbuf) {
@@ -143,9 +266,8 @@ static void *worker(void *a) {
     char errtype[256];
     char errmsg[1024];
 	params_t* params = (params_t*)a;
-	const config_t* conf = params->conf;
 	vm_pool_t* pool = params->pool;
-    FCGX_Request request;
+    request_t req;
     char* script = NULL;
 	lua_State* L = NULL;
     struct stat fs;
@@ -156,14 +278,15 @@ static void *worker(void *a) {
     fflush(stderr);
 	#endif
 
-    FCGX_InitRequest(&request, params->sock, 0);
+    FCGX_InitRequest(&req.fcgi, params->sock, 0);
+    req.conf = params->conf;
 
     for (;;) {
         static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
 
         // use accept() serialization
         pthread_mutex_lock(&accept_mutex);
-        rc = FCGX_Accept_r(&request);
+        rc = FCGX_Accept_r(&req.fcgi);
         pthread_mutex_unlock(&accept_mutex);
 
         if (rc < 0) break;
@@ -173,7 +296,7 @@ static void *worker(void *a) {
 		//fflush(stderr);
 		#endif
 
-		script = FCGX_GetParam("SCRIPT_FILENAME", request.envp);
+		script = FCGX_GetParam("SCRIPT_FILENAME", req.fcgi.envp);
 
 		#ifdef SEP
 		// normalize path seperator
@@ -190,8 +313,8 @@ static void *worker(void *a) {
 		errmsg[0] = '\0';
 
 		// search for script
-        j = conf->states;
-        k = conf->retries + 1;
+        j = req.conf->states;
+        k = req.conf->retries + 1;
 		do {
 			pthread_mutex_lock(&pool_mutex);
 			for (i = 0; i < j; i++) {
@@ -223,6 +346,7 @@ static void *worker(void *a) {
 				return NULL;
 			}
 			luaL_openlibs(L);
+			luaL_loadrequest(L);
 
 			fbuf = script_load(script, &fs);
 
@@ -286,19 +410,18 @@ static void *worker(void *a) {
 
         if (rc == STATUS_OK) {
         	// we have a valid VM state, time to roll!
-            lua_getglobal(L, "handler");
+            lua_getglobal(L, "main");
             if (lua_isfunction(L, -1)) {
+                // prepare request object
+                req.headers_sent = FALSE;
+                // prepare main() args
+                luaL_pushcgienv(L, &req);
+                luaL_pushrequest(L, &req);
             	// call script handler
-                rc = lua_pcall(L, 0, 1, 0);
-                // check for valid return
-                if (!lua_isstring(L, -1)) {
-                    lua_pop(L, 1);
-                    rc = LUA_ERRRUN;
-                    lua_pushstring(L, "handler() must return string");
-                }
+                rc = lua_pcall(L, 2, 0, 0);
             } else {
                 rc = LUA_ERRRUN;
-				lua_pushstring(L, "handler() function not found");
+				lua_pushstring(L, "main() function not found");
             }
         }
 
@@ -328,15 +451,19 @@ static void *worker(void *a) {
 
         // send the data out the tubes
         if (rc == STATUS_OK) {
-            HTTP_200(request.out, lua_tostring(L, -1));
-			lua_pop(L, 1);
+            if(!req.headers_sent) {
+                FCGX_FPrintF(req.fcgi.out,
+                    "Status: 200 OK\r\n"
+                    "Content-Type: text/html\r\n\r\n"
+                );
+            }
         } else if (rc == STATUS_404) {
-			HTTP_404(request.out, script);
+			HTTP_404(req.fcgi.out, script);
         } else {
-            HTTP_500(request.out, errtype, errmsg);
+            HTTP_500(req.fcgi.out, errtype, errmsg);
         }
 
-        FCGX_Finish_r(&request);
+        FCGX_Finish_r(&req.fcgi);
 
         if (i < j) {
             // we are done with the slot, so we shall flag out
