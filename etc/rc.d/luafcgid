@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# luafcgid for FreeBSD rc.d usage (c) 2009 STPeters
+#
+# PROVIDE: signet
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following line to /etc/rc.conf to enable luafcgid:
+#
+#  luafcgid_enable="YES"
+#  # optional
+#  luafcgid_conf="/usr/local/etc/luafcgid.lua"
+
+. "/etc/rc.subr"
+
+luafcgid_enable=${luafcgi_enable:-"NO"}
+luafcgid_conf=${luafcgid_conf:-"/usr/local/etc/luafcgid.lua"}
+luafcgid_user=${luafcgid_user:-"www"}
+
+name=luafcgid
+rcvar=`set_rcvar`
+load_rc_config $name
+pidfile="/var/run/${name}.pid"
+command="su -m $luafcgid_user -c /usr/local/bin/luafcgid"
+command_args="$luafcgid_conf > $luafcgid_log 2>&1 &"
+
+run_rc_command "$1"
