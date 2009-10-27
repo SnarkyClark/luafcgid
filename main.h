@@ -3,6 +3,26 @@
 
 #define LUAFCGID_VERSION 1
 
+#ifdef DEBUG
+#define CHATTER
+#else
+#define NDEBUG
+#endif
+
+#include <assert.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <fcgi_config.h>
+#include <fcgiapp.h>
+
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -76,55 +96,35 @@
 #define LUA_ERRSYNTAX_STR "Syntax Error"
 #define LUA_ERRMEM_STR "Memory Error"
 #define ERRUNKNOWN_STR "Unknown Error"
+#define ERR_STR_SIZE 16
+#define ERR_SIZE 1024
 
 #define HOOK_HOUSEKEEPING 0
 #define HOOK_STARTUP 1
 #define HOOK_SHUTDOWN 2
 #define HOOK_COUNT 3
 
-struct vm_pool_struct {
-	int status;
-	char* name;
-	time_t load;
-	lua_State* state;
-} typedef vm_pool_t;
-
-struct hook_struct {
-	int count;
-	char** chunk;
-} typedef hook_t;
-
-struct config_struct {
-	char* listen;
-	int workers;
-	int states;
-	int sweep;
-	int retries;
-	int maxpost;
-	hook_t* hook[HOOK_COUNT];
-} typedef config_t;
+#include "config.h"
+#include "pool.h"
+#include "request.h"
 
 struct params_struct {
 	int pid;
 	int tid;
 	int sock;
+	// READ ONLY config!
 	const config_t* conf;
-	vm_pool_t* pool;
+	pool_t* pool;
 } typedef params_t;
-
-struct request_struct {
-    FCGX_Request fcgi;
-    const config_t* conf;
-    BOOL headers_sent;
-} typedef request_t;
 
 BOOL luaL_getglobal_int(lua_State* L, const char* name, int* v);
 BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v);
 
+void luaL_pushcgicontent(lua_State* L, request_t* r);
+void luaL_pushcgienv(lua_State* L, request_t* r);
+
 char* script_load(const char* fn, struct stat* fs);
 config_t* config_load(const char* fn);
-void pool_load(vm_pool_t *p, lua_State* L, char* name);
-void pool_flush(vm_pool_t* p);
 
 int req_gets(lua_State *L);
 int req_puts(lua_State *L);

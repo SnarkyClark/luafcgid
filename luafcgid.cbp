@@ -13,7 +13,9 @@
 				<Option compiler="gcc" />
 				<Option parameters="D:\User\Projects\luafcgid\config.lua" />
 				<Compiler>
+					<Add option="-Wall" />
 					<Add option="-g" />
+					<Add option="-DDEBUG" />
 					<Add directory="." />
 					<Add directory=".\include" />
 				</Compiler>
@@ -30,6 +32,7 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 				<Compiler>
+					<Add option="-march=i586" />
 					<Add option="-O2" />
 					<Add directory="." />
 					<Add directory=".\include" />
@@ -47,11 +50,23 @@
 			<Add option="-Wall" />
 		</Compiler>
 		<Unit filename="Makefile" />
+		<Unit filename="config.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="config.h" />
 		<Unit filename="config.lua" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="main.h" />
+		<Unit filename="pool.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="pool.h" />
+		<Unit filename="request.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="request.h" />
 		<Extensions>
 			<code_completion />
 			<debugger />
