@@ -5,6 +5,11 @@
  * (c) STPeters 2009
  */
 
+#define NDEBUG
+//#define CHATTER
+
+#include <assert.h>
+
 #include <fcgi_config.h>
 
 #include <stdio.h>
@@ -19,7 +24,6 @@
 
 #include "main.h"
 
-#define CHATTER
 
 const char* env_var[] = {
     // standard CGI environment variables as per CGI Specification 1.1
@@ -255,16 +259,18 @@ void pool_flush(vm_pool_t* p) {
 	if(p->state) {
 		lua_close(p->state);
         // TODO: run state shutdown hook
+        p->state = NULL;
 	}
 	// sweep it up
 	if(p->name) free(p->name);
-	memset(p, 0, sizeof(vm_pool_t));
+	p->name = NULL;
 }
 
 static void *worker(void *a) {
+	static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
     int rc, i, j, k;
     char errtype[256];
-    char errmsg[1024];
+    char errmsg[4096];
 	params_t* params = (params_t*)a;
 	vm_pool_t* pool = params->pool;
     request_t req;
@@ -282,7 +288,6 @@ static void *worker(void *a) {
     req.conf = params->conf;
 
     for (;;) {
-        static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
 
         // use accept() serialization
         pthread_mutex_lock(&accept_mutex);
@@ -292,8 +297,8 @@ static void *worker(void *a) {
         if (rc < 0) break;
 
 		#ifdef CHATTER
-		//fprintf(stderr, "\t[%d] accepting connection\n", params->tid);
-		//fflush(stderr);
+		fprintf(stderr, "[%d] accepting connection\n", params->tid);
+		fflush(stderr);
 		#endif
 
 		script = FCGX_GetParam("SCRIPT_FILENAME", req.fcgi.envp);
@@ -314,22 +319,28 @@ static void *worker(void *a) {
 
 		// search for script
         j = req.conf->states;
-        k = req.conf->retries + 1;
+        k = 0;
 		do {
+			if (k) usleep(1); // give someone else a chance to flag out
 			pthread_mutex_lock(&pool_mutex);
 			for (i = 0; i < j; i++) {
-				if (pool[i].state && !pool[i].status) {
+				// is the slot available and loaded?
+				if (!pool[i].status && pool[i].state) {
+					// do the names match?
 					if ((!script && !pool[i].name) ||
 							((script && pool[i].name) &&
 							(strcmp(script, pool[i].name) == 0))) {
 						// lock it
 						pool[i].status = STATUS_BUSY;
+						#ifdef CHATTER
+						fprintf(stderr, "\t[%d] found and locked [%d]\n", params->tid, i);
+						#endif
 						break;
 					}
 				}
 			}
 			pthread_mutex_unlock(&pool_mutex);
-		} while ((i == j) && (--k > 0));
+		} while ((i == j) && (++k < req.conf->retries));
 
 		if (i < j) {
 			// found a matching state
@@ -339,10 +350,8 @@ static void *worker(void *a) {
 			// make a new state
 			L = lua_open();
 			if (!L) {
-				#ifdef CHATTER
-				fprintf(stderr, "\tunable to init lua!\n");
+				fprintf(stderr, "[%d] unable to init lua!\n", params->tid);
 				fflush(stderr);
-				#endif
 				return NULL;
 			}
 			luaL_openlibs(L);
@@ -366,6 +375,9 @@ static void *worker(void *a) {
                 for (i = 0; i < j; i++) {
                     if (!pool[i].status && !pool[i].state) {
                         pool[i].status = STATUS_BUSY;
+                        #ifdef CHATTER
+                        fprintf(stderr, "\t[%d] locked free [%d]\n", params->tid, i);
+                        #endif
                         break;
                     }
                 }
@@ -378,6 +390,9 @@ static void *worker(void *a) {
                             if (!pool[i].status) {
                                 // found one, so lock it for ourselves
                                 pool[i].status = STATUS_BUSY;
+								#ifdef CHATTER
+								fprintf(stderr, "\t[%d] locked inactive [%d]\n", params->tid, i);
+								#endif
                                 break;
                             }
                         }
@@ -431,22 +446,28 @@ static void *worker(void *a) {
 				break;
 			case LUA_ERRFILE:
 				strcpy(errtype, LUA_ERRFILE_STR);
+				fprintf(stderr, "[%d] %s\n", params->tid, errtype);
 				break;
 			case LUA_ERRRUN:
 				strcpy(errtype, LUA_ERRRUN_STR);
+				fprintf(stderr, "[%d] %s: %s\n", params->tid, errtype, lua_tostring(L, -1));
                	strcpy(errmsg, lua_tostring(L, -1));
                 lua_pop(L, 1);
 				break;
 			case LUA_ERRSYNTAX:
 				strcpy(errtype, LUA_ERRSYNTAX_STR);
+				fprintf(stderr, "[%d] %s: %s\n", params->tid, errtype, lua_tostring(L, -1));
                	strcpy(errmsg, lua_tostring(L, -1));
                 lua_pop(L, 1);
 				break;
 			case LUA_ERRMEM:
 				strcpy(errtype, LUA_ERRMEM_STR);
+				fprintf(stderr, "[%d] %s\n", params->tid, errtype);
 				break;
 			default:
 				strcpy(errtype, ERRUNKNOWN_STR);
+				fprintf(stderr, "[%d] %s\n", params->tid, errtype);
+				break;
 		};
 
         // send the data out the tubes
@@ -472,7 +493,11 @@ static void *worker(void *a) {
             pthread_mutex_unlock(&pool_mutex);
         }
 
-        // avoid harmonics
+		#ifdef CHATTER
+		fprintf(stderr, "[%d] done with request\n", params->tid);
+		#endif
+
+        // cooldown
         usleep((int)((rand() % 3) + 1));
 
     }
