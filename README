@@ -55,10 +55,9 @@ Linux/MacOSX:
 FreeBSD:
 
 - install following ports
-* devel/gmake
 * lang/lua
 * www/fcgi
-# gmake install clean
+# make install clean
 
 Windows:
 
