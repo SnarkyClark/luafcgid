@@ -6,8 +6,11 @@ listen = ":9000"
 -- number of worker threads
 workers = 3
 
--- number of Lua VM states
+-- max number of Lua VM states
 states = 5
+
+-- number of clones of each script allowed
+clones = states
 
 -- housekeeping sweep cycle in milliseconds
 sweep = 1000

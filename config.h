@@ -10,6 +10,7 @@ struct config_struct {
 	char* listen;
 	int workers;
 	int states;
+	int clones;
 	int sweep;
 	int retries;
 	int maxpost;
