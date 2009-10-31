@@ -172,6 +172,8 @@ static void *worker(void *a) {
 	lua_State* L = NULL;
     struct stat fs;
 	char* fbuf = NULL;
+	int clones = 0;
+	BOOL flag = FALSE;
 
 	#ifdef CHATTER
 	logit("[%d] starting", params->tid);
@@ -220,18 +222,26 @@ static void *worker(void *a) {
 		// search for script
         j = pool->count;
         k = 0;
+        flag = FALSE;
 		do {
 			// give someone else a chance to flag out
 			if (k) usleep(1);
+			#ifdef CHATTER
+			if (k && !flag) logit("   [%d] is retrying the script scan #%d", params->tid, k);
+			#endif
+			clones = 0;
 			pthread_mutex_lock(&pool->mutex);
 			for (i = 0; i < j; i++) {
 				slot = &pool->slot[i];
-				// is the slot available and loaded?
-				if (!slot->status && slot->state) {
-					// do the names match?
-					if ((!script && !slot->name) ||
-							((script && slot->name) &&
-							(strcmp(script, slot->name) == 0))) {
+				// do the names match and is it a valid state?
+				if (((!script && !slot->name) ||
+						((script && slot->name) &&
+						(strcmp(script, slot->name) == 0))) &&
+						slot->state) {
+					// count the clones
+					clones++;
+					// is the slot available?
+					if (!slot->status) {
 						// lock it
 						slot->status = STATUS_BUSY;
 						#ifdef CHATTER
@@ -242,7 +252,17 @@ static void *worker(void *a) {
 				}
 			}
 			pthread_mutex_unlock(&pool->mutex);
-		} while ((i == j) && (++k < req.conf->retries));
+			if ((i == j) && (clones > req.conf->clones)) {
+				// we have max clones running, try again
+				k = -1;
+				#ifdef CHATTER
+				if (!flag) {
+					logit("   [%d] thinks there are enough clones aleady", params->tid);
+					flag = TRUE;
+				}
+				#endif
+			}
+		} while ((i == j) && (++k <= req.conf->retries));
 
 		if (i < j) {
 			// found a matching state

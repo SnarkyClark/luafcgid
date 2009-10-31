@@ -14,8 +14,9 @@ config_t* config_load(const char* fn) {
 	strcpy(cf->listen, LISTEN_PATH);
     cf->workers = 3;
     cf->states = 5;
+    cf->clones = cf->states;
     cf->sweep = 1000;
-    cf->retries = 1;
+    cf->retries = 2;
     cf->maxpost = 1024 * 1024;
 	cf->logfile = (char*)malloc(strlen(LOGFILE) + 1);
 	strcpy(cf->logfile, LOGFILE);
@@ -36,7 +37,9 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_str(L, "listen", &cf->listen);
 			luaL_getglobal_int(L, "workers", &cf->workers);
 			luaL_getglobal_int(L, "states", &cf->states);
+			luaL_getglobal_int(L, "clones", &cf->clones);
 			luaL_getglobal_int(L, "sweep", &cf->sweep);
+			luaL_getglobal_int(L, "retries", &cf->retries);
 			luaL_getglobal_int(L, "maxpost", &cf->maxpost);
 			luaL_getglobal_str(L, "logfile", &cf->logfile);
 			// TODO
