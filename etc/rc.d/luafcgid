@@ -12,6 +12,7 @@
 #  luafcgid_enable="YES"
 #  # optional
 #  luafcgid_conf="/usr/local/etc/luafcgid.lua"
+#  luafcgid_user="www"
 
 . "/etc/rc.subr"
 
@@ -24,6 +25,6 @@ rcvar=`set_rcvar`
 load_rc_config $name
 pidfile="/var/run/${name}.pid"
 command="su -m $luafcgid_user -c /usr/local/bin/luafcgid"
-command_args="$luafcgid_conf > $luafcgid_log 2>&1 &"
+command_args="$luafcgid_conf"
 
 run_rc_command "$1"

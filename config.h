@@ -13,6 +13,7 @@ struct config_struct {
 	int sweep;
 	int retries;
 	int maxpost;
+	char* logfile;
 	hook_t* hook[HOOK_COUNT];
 } typedef config_t;
 

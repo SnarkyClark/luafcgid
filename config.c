@@ -17,6 +17,8 @@ config_t* config_load(const char* fn) {
     cf->sweep = 1000;
     cf->retries = 1;
     cf->maxpost = 1024 * 1024;
+	cf->logfile = (char*)malloc(strlen(LOGFILE) + 1);
+	strcpy(cf->logfile, LOGFILE);
 
     if (fn) fbuf = script_load(fn, &fs);
 	if (fbuf) {
@@ -35,6 +37,8 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_int(L, "workers", &cf->workers);
 			luaL_getglobal_int(L, "states", &cf->states);
 			luaL_getglobal_int(L, "sweep", &cf->sweep);
+			luaL_getglobal_int(L, "maxpost", &cf->maxpost);
+			luaL_getglobal_str(L, "logfile", &cf->logfile);
 			// TODO
 		}
 		lua_close(L);

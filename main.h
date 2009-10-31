@@ -51,6 +51,7 @@
 #endif
 
 #define LISTEN_PATH ":9000"
+#define LOGFILE "luafcgid.log"
 
 #define STATUS_OK 0
 #define STATUS_BUSY 1
@@ -126,6 +127,7 @@ void luaL_pushcgicontent(lua_State* L, request_t* r);
 void luaL_pushcgienv(lua_State* L, request_t* r);
 
 char* script_load(const char* fn, struct stat* fs);
+void logit(const char* fmt, ...);
 config_t* config_load(const char* fn);
 
 int req_gets(lua_State *L);

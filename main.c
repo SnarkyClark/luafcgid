@@ -125,6 +125,35 @@ char* script_load(const char* fn, struct stat* fs) {
 	return fbuf;
 }
 
+// create an ISO timestamp
+void timestamp(char* ts) {
+	time_t t;
+	struct tm timeinfo;
+	time(&t);
+	if (localtime_r(&t, &timeinfo)) {
+		strftime(ts, 20, "%Y-%m-%d %H:%M:%S", &timeinfo);
+	} else {
+		strncpy(ts, "NULL", sizeof(ts));
+		ts[sizeof(ts) - 1] = '\0';
+	}
+}
+
+// log a string and vars with a timestamp
+void logit(const char* fmt, ...) {
+    va_list args;
+    char ts[20] = {'\0'};
+    char *str = NULL;
+    // make a copy and add the timestamp
+    timestamp(ts);
+    str = (char*)malloc(20 + strlen(fmt) + 1);
+    sprintf(str, "%s %s\n", ts, fmt);
+    // we just let stderr route it
+    va_start(args, fmt);
+    vfprintf(stderr, str, args);
+    fflush(stderr);
+    va_end(args);
+}
+
 // worker and parent threads
 
 static void *worker(void *a) {
@@ -145,8 +174,7 @@ static void *worker(void *a) {
 	char* fbuf = NULL;
 
 	#ifdef CHATTER
-    fprintf(stderr, "[%d] starting\n", params->tid);
-    fflush(stderr);
+	logit("[%d] starting", params->tid);
 	#endif
 
     FCGX_InitRequest(&req.fcgi, params->sock, 0);
@@ -162,8 +190,7 @@ static void *worker(void *a) {
         if (rc < 0) break;
 
 		#ifdef CHATTER
-		fprintf(stderr, "[%d] accepting connection\n", params->tid);
-		fflush(stderr);
+		logit("[%d] accepting connection", params->tid);
 		#endif
 
 		// init loop locals
@@ -208,7 +235,7 @@ static void *worker(void *a) {
 						// lock it
 						slot->status = STATUS_BUSY;
 						#ifdef CHATTER
-						fprintf(stderr, "\t[%d] found and locked [%d]\n", params->tid, i);
+						logit("   [%d] found and locked slot [%d]", params->tid, i);
 						#endif
 						break;
 					}
@@ -225,8 +252,7 @@ static void *worker(void *a) {
 			// make a new state
 			L = lua_open();
 			if (!L) {
-				fprintf(stderr, "[%d] unable to init lua!\n", params->tid);
-				fflush(stderr);
+				logit("[%d] unable to init lua!", params->tid);
 				return NULL;
 			}
 			luaL_openlibs(L);
@@ -252,7 +278,7 @@ static void *worker(void *a) {
                     if (!slot->status && !slot->state) {
                         slot->status = STATUS_BUSY;
                         #ifdef CHATTER
-                        fprintf(stderr, "\t[%d] locked free [%d]\n", params->tid, i);
+						logit("   [%d] locked free slot [%d]", params->tid, i);
                         #endif
                         break;
                     }
@@ -268,7 +294,7 @@ static void *worker(void *a) {
                                 // found one, so lock it for ourselves
                                 slot->status = STATUS_BUSY;
 								#ifdef CHATTER
-								fprintf(stderr, "\t[%d] locked inactive [%d]\n", params->tid, i);
+								logit("   [%d] locked inactive slot [%d]", params->tid, i);
 								#endif
                                 break;
                             }
@@ -282,8 +308,7 @@ static void *worker(void *a) {
                         }
                     } while (i == j);
 					#ifdef CHATTER
-                    fprintf(stderr, "\t[%d] kicked [%d] out of the pool\n", params->tid, i);
-                    fflush(stderr);
+					logit("   [%d] kicked slot [%d] out of the pool", params->tid, i);
 					#endif
                 }
                 // 'slot' and 'i' should now reference a slot that is locked and free to use
@@ -292,8 +317,7 @@ static void *worker(void *a) {
                 slot_flush(slot);
                 slot_load(slot, L, script);
 				#ifdef CHATTER
-                fprintf(stderr, "\t[%d] loaded '%s' into [%d]\n", params->tid, script, i);
-                fflush(stderr);
+				logit("   [%d] loaded '%s' into slot [%d]", params->tid, script, i);
 				#endif
             } else {
                 i = j;
@@ -320,24 +344,22 @@ static void *worker(void *a) {
 		// translate for the puny humans
 		switch (rc) {
 			case STATUS_OK:
+			case STATUS_404:
 				break;
 			case LUA_ERRFILE:
 				strncpy(errtype, LUA_ERRFILE_STR, ERR_STR_SIZE);
                	errtype[ERR_STR_SIZE] = '\0';
-				fprintf(stderr, "[%d] %s\n", params->tid, errtype);
 				break;
 			case LUA_ERRRUN:
 				strncpy(errtype, LUA_ERRRUN_STR, ERR_STR_SIZE);
                	errtype[ERR_STR_SIZE] = '\0';
-				fprintf(stderr, "[%d] %s: %s\n", params->tid, errtype, lua_tostring(L, -1));
                	strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
-               	errtype[ERR_STR_SIZE] = '\0';
+               	errmsg[ERR_SIZE] = '\0';
                 lua_pop(L, 1);
 				break;
 			case LUA_ERRSYNTAX:
 				strncpy(errtype, LUA_ERRSYNTAX_STR, ERR_STR_SIZE);
                	errtype[ERR_STR_SIZE] = '\0';
-				fprintf(stderr, "[%d] %s: %s\n", params->tid, errtype, lua_tostring(L, -1));
                	strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
                	errmsg[ERR_SIZE] = '\0';
                 lua_pop(L, 1);
@@ -345,12 +367,26 @@ static void *worker(void *a) {
 			case LUA_ERRMEM:
 				strncpy(errtype, LUA_ERRMEM_STR, ERR_STR_SIZE);
                	errtype[ERR_STR_SIZE] = '\0';
-				fprintf(stderr, "[%d] %s\n", params->tid, errtype);
 				break;
 			default:
 				strncpy(errtype, ERRUNKNOWN_STR, ERR_STR_SIZE);
                	errtype[ERR_STR_SIZE] = '\0';
-				fprintf(stderr, "[%d] %s\n", params->tid, errtype);
+				break;
+		};
+
+		// log any errors
+		switch(rc) {
+			case STATUS_OK:
+			case STATUS_404:
+				break;
+			case LUA_ERRRUN:
+			case LUA_ERRSYNTAX:
+				logit("[%d] %s: %s", params->tid, errtype, errmsg);
+				break;
+			case LUA_ERRFILE:
+			case LUA_ERRMEM:
+			default:
+				logit("[%d] %s", params->tid, errtype);
 				break;
 		};
 
@@ -378,7 +414,7 @@ static void *worker(void *a) {
         }
 
 		#ifdef CHATTER
-		fprintf(stderr, "[%d] done with request\n", params->tid);
+		logit("[%d] done with request", params->tid);
 		#endif
 
         // cooldown
@@ -407,12 +443,14 @@ int main(int arc, char** argv) {
 		conf = config_load("config.lua");
 	}
 
+	// redirect stderr to logfile
+	if (conf->logfile) freopen(conf->logfile, "w", stderr);
+
     FCGX_Init();
 
 	sock = FCGX_OpenSocket(conf->listen, 100);
     if (!sock) {
-        fprintf(stderr, "\tunable to create accept socket!\n");
-        fflush(stderr);
+    	logit("[PARENT] unable to create accept socket!");
         return 1;
     }
 
@@ -448,8 +486,7 @@ int main(int arc, char** argv) {
 						(fs.st_mtime > slot->load)) {
 					slot_flush(slot);
 					#ifdef CHATTER
-					fprintf(stderr, "[%d] has gone stale\n", i);
-					fflush(stderr);
+					logit("[%d] has gone stale", i);
 					#endif
 				}
 			}
