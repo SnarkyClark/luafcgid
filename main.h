@@ -34,6 +34,8 @@
 #include <windows.h>
 #define usleep(msec) Sleep(msec)
 #define SEP '\\'
+#else
+#define SEP '/'
 #endif
 
 #ifndef BOOL

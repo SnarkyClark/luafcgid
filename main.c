@@ -32,6 +32,8 @@ const char* env_var[] = {
     // common client variables
     "HTTP_ACCEPT",
     "HTTP_USER_AGENT",
+    // not spec, but required for this to work
+    "SCRIPT_FILENAME",
     NULL,
 };
 
@@ -137,6 +139,7 @@ static void *worker(void *a) {
 	slot_t* slot = NULL;
     request_t req;
     char* script = NULL;
+    char* split = NULL;
 	lua_State* L = NULL;
     struct stat fs;
 	char* fbuf = NULL;
@@ -169,21 +172,30 @@ static void *worker(void *a) {
 		errmsg[0] = '\0';
 		slot = NULL;
 
-		#ifdef SEP
-		// normalize path seperator
 		if (script) {
+			#ifdef _WIN32
+			// normalize path seperator
 			j = strlen(script);
 			for (i = 0; i < j; i++) {
 				if (script[i] == '/') script[i] = SEP;
 			}
+			#endif
+			// isolate the path in the script filename,
+			// and change the cwd to it
+			split = strrchr(script, SEP);
+			if (split) {
+				*split = '\0';
+				chdir(script);
+				*split = SEP;
+			}
 		}
-		#endif
 
 		// search for script
         j = pool->count;
         k = 0;
 		do {
-			if (k) usleep(1); // give someone else a chance to flag out
+			// give someone else a chance to flag out
+			if (k) usleep(1);
 			pthread_mutex_lock(&pool->mutex);
 			for (i = 0; i < j; i++) {
 				slot = &pool->slot[i];
