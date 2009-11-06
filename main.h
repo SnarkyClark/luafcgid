@@ -111,9 +111,19 @@
 #include "pool.h"
 #include "request.h"
 
+struct watchdog_struct {
+	BOOL run;
+	int rem;
+} typedef watchdog_t;
+
+struct worker_struct {
+	pthread_t tid;
+	watchdog_t watch;
+} typedef worker_t;
+
 struct params_struct {
-	int pid;
-	int tid;
+	pid_t pid;
+	int wid;
 	int sock;
 	// READ ONLY config!
 	const config_t* conf;

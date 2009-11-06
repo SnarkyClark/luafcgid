@@ -42,6 +42,7 @@ int req_puts(lua_State *L) {
         r = luaL_checkrequest(L, 1);
         luaL_checkstring(L, 2);
         s = lua_tolstring(L, 2, &l);
+        // make sure headers are sent before any data
         if(!r->headers_sent) {
             // TODO: allow custom mime type
             FCGX_FPrintF(r->fcgi.out,
@@ -60,6 +61,17 @@ int req_gets(lua_State *L) {
     if (lua_gettop(L)) {
         r = luaL_checkrequest(L, 1);
         luaL_pushcgicontent(L, r);
+    } else {
+        lua_pushnil(L);
+    }
+    return 1;
+}
+
+int req_parse(lua_State *L) {
+    request_t* r = NULL;
+    if (lua_gettop(L)) {
+        r = luaL_checkrequest(L, 1);
+
     } else {
         lua_pushnil(L);
     }

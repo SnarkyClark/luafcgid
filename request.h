@@ -4,7 +4,8 @@
 struct request_struct {
     FCGX_Request fcgi;
     BOOL headers_sent;
-	// READ ONLY config!
+	// READ ONLY vars!
+    int wid;
     const config_t* conf;
 } typedef request_t;
 

@@ -5,11 +5,12 @@ struct slot_struct {
 	// always lock the pool mutex
 	// when reading OR writing the status
 	int status;
-	// once you flag the slot as STATUS_BUSY,
+	// once you flag the slot with the STATUS_BUSY,
 	// unlock the mutex and you are
 	// free to mess with this stuff below
-	char* name;
-	time_t load;
+	char* name; // script filename
+	time_t load; // timestamp loaded
+	pthread_t tid; // thread using the state
 	lua_State* state;
 } typedef slot_t;
 

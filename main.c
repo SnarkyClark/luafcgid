@@ -156,7 +156,7 @@ void logit(const char* fmt, ...) {
 
 // worker and parent threads
 
-static void *worker(void *a) {
+static void *worker_run(void *a) {
 	// shared vars
 	static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
 	// local private vars
@@ -176,10 +176,11 @@ static void *worker(void *a) {
 	BOOL flag = FALSE;
 
 	#ifdef CHATTER
-	logit("[%d] starting", params->tid);
+	logit("[%d] starting", params->wid);
 	#endif
 
     FCGX_InitRequest(&req.fcgi, params->sock, 0);
+    req.wid = params->wid;
     req.conf = params->conf;
 
     for (;;) {
@@ -192,7 +193,7 @@ static void *worker(void *a) {
         if (rc < 0) break;
 
 		#ifdef CHATTER
-		logit("[%d] accepting connection", params->tid);
+		logit("[%d] accepting connection", params->wid);
 		#endif
 
 		// init loop locals
@@ -227,7 +228,7 @@ static void *worker(void *a) {
 			// give someone else a chance to flag out
 			if (k) usleep(1);
 			#ifdef CHATTER
-			if (k && !flag) logit("   [%d] is retrying the script scan #%d", params->tid, k);
+			if (k && !flag) logit("   [%d] is retrying the script scan #%d", params->wid, k);
 			#endif
 			clones = 0;
 			pthread_mutex_lock(&pool->mutex);
@@ -245,7 +246,7 @@ static void *worker(void *a) {
 						// lock it
 						slot->status = STATUS_BUSY;
 						#ifdef CHATTER
-						logit("   [%d] found and locked slot [%d]", params->tid, i);
+						logit("   [%d] found and locked slot [%d]", params->wid, i);
 						#endif
 						break;
 					}
@@ -257,7 +258,7 @@ static void *worker(void *a) {
 				k = -1;
 				#ifdef CHATTER
 				if (!flag) {
-					logit("   [%d] thinks there are enough clones aleady", params->tid);
+					logit("   [%d] thinks there are enough clones aleady", params->wid);
 					flag = TRUE;
 				}
 				#endif
@@ -272,7 +273,7 @@ static void *worker(void *a) {
 			// make a new state
 			L = lua_open();
 			if (!L) {
-				logit("[%d] unable to init lua!", params->tid);
+				logit("[%d] unable to init lua!", params->wid);
 				return NULL;
 			}
 			luaL_openlibs(L);
@@ -298,7 +299,7 @@ static void *worker(void *a) {
                     if (!slot->status && !slot->state) {
                         slot->status = STATUS_BUSY;
                         #ifdef CHATTER
-						logit("   [%d] locked free slot [%d]", params->tid, i);
+						logit("   [%d] locked free slot [%d]", params->wid, i);
                         #endif
                         break;
                     }
@@ -314,7 +315,7 @@ static void *worker(void *a) {
                                 // found one, so lock it for ourselves
                                 slot->status = STATUS_BUSY;
 								#ifdef CHATTER
-								logit("   [%d] locked inactive slot [%d]", params->tid, i);
+								logit("   [%d] locked inactive slot [%d]", params->wid, i);
 								#endif
                                 break;
                             }
@@ -328,7 +329,7 @@ static void *worker(void *a) {
                         }
                     } while (i == j);
 					#ifdef CHATTER
-					logit("   [%d] kicked slot [%d] out of the pool", params->tid, i);
+					logit("   [%d] kicked slot [%d] out of the pool", params->wid, i);
 					#endif
                 }
                 // 'slot' and 'i' should now reference a slot that is locked and free to use
@@ -337,7 +338,7 @@ static void *worker(void *a) {
                 slot_flush(slot);
                 slot_load(slot, L, script);
 				#ifdef CHATTER
-				logit("   [%d] loaded '%s' into slot [%d]", params->tid, script, i);
+				logit("   [%d] loaded '%s' into slot [%d]", params->wid, script, i);
 				#endif
             } else {
                 i = j;
@@ -401,12 +402,12 @@ static void *worker(void *a) {
 				break;
 			case LUA_ERRRUN:
 			case LUA_ERRSYNTAX:
-				logit("[%d] %s: %s", params->tid, errtype, errmsg);
+				logit("[%d] %s: %s", params->wid, errtype, errmsg);
 				break;
 			case LUA_ERRFILE:
 			case LUA_ERRMEM:
 			default:
-				logit("[%d] %s", params->tid, errtype);
+				logit("[%d] %s", params->wid, errtype);
 				break;
 		};
 
@@ -434,7 +435,7 @@ static void *worker(void *a) {
         }
 
 		#ifdef CHATTER
-		logit("[%d] done with request", params->tid);
+		logit("[%d] done with request", params->wid);
 		#endif
 
         // cooldown
@@ -450,12 +451,15 @@ int main(int arc, char** argv) {
 
     int i, j, sock;
     pid_t pid = getpid();
-    pthread_t* id = NULL;
+    worker_t* worker = NULL;
 	params_t* params = NULL;
 	pool_t* pool = NULL;
 	slot_t* slot = NULL;
     struct stat fs;
     config_t* conf = NULL;
+    time_t now;
+    time_t lastsweep;
+    int interval;
 
 	if (arc > 1 && argv[1]) {
 		conf = config_load(argv[1]);
@@ -476,27 +480,37 @@ int main(int arc, char** argv) {
 
 	pool = pool_open(conf->states);
 
-    // alloc worker data
     j = conf->workers;
-	id = (pthread_t*)malloc(sizeof(pthread_t) * j);
+    // alloc worker data
+	worker = (worker_t*)malloc(sizeof(worker_t) * j);
+	memset(worker, 0, sizeof(worker_t) * j);
+	// alloc worker params
     params = (params_t*)malloc(sizeof(params_t) * j);
+    memset(params, 0, sizeof(params_t) * j);
 
     for (i = 0; i < j; i++) {
 		// initialize worker params
 		params[i].pid = pid;
-		params[i].tid = i;
+		params[i].wid = i;
 		params[i].sock = sock;
 		params[i].pool = pool;
 		params[i].conf = conf;
 		// create worker thread
-        pthread_create(&id[i], NULL, worker, (void*)&params[i]);
+        pthread_create(&worker[i].tid, NULL, worker_run, (void*)&params[i]);
         usleep(10);
     }
+
+	lastsweep = time(NULL);
 
     for (;;) {
     	// chill till the next sweep
 		usleep(conf->sweep);
-		// housekeeping
+		// how long was the last cycle?
+		now = time(NULL);
+		interval = now - lastsweep;
+		lastsweep = now;
+		// housekeeping ...
+		// first, we flush any Lua scripts that have been modified
         pthread_mutex_lock(&pool->mutex);
 		for (i = 0; i < pool->count; i++) {
 			slot = &pool->slot[i];
@@ -516,7 +530,7 @@ int main(int arc, char** argv) {
     }
 
     free(params);
-	free(id);
+	free(worker);
 
 	pool_close(pool);
 

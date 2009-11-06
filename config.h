@@ -12,6 +12,7 @@ struct config_struct {
 	int states;
 	int clones;
 	int sweep;
+	int watchdog;
 	int retries;
 	int maxpost;
 	char* logfile;

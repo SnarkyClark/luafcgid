@@ -16,6 +16,7 @@ config_t* config_load(const char* fn) {
     cf->states = 5;
     cf->clones = cf->states;
     cf->sweep = 1000;
+    cf->watchdog = 60;
     cf->retries = 2;
     cf->maxpost = 1024 * 1024;
 	cf->logfile = (char*)malloc(strlen(LOGFILE) + 1);
@@ -39,6 +40,7 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_int(L, "states", &cf->states);
 			luaL_getglobal_int(L, "clones", &cf->clones);
 			luaL_getglobal_int(L, "sweep", &cf->sweep);
+			luaL_getglobal_int(L, "watchdog", &cf->watchdog);
 			luaL_getglobal_int(L, "retries", &cf->retries);
 			luaL_getglobal_int(L, "maxpost", &cf->maxpost);
 			luaL_getglobal_str(L, "logfile", &cf->logfile);

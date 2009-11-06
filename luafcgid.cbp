@@ -59,6 +59,9 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="main.h" />
+		<Unit filename="parser.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="pool.c">
 			<Option compilerVar="CC" />
 		</Unit>
