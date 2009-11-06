@@ -14,8 +14,8 @@ OPTS = -O2
 CFLAGS = $(INCS) $(WARN) $(OPTS) $(DEBUG) $G
 LDFLAGS = $(LIBS) $(OPTS) $(DEBUG)
 
-SRCS = main.c config.c pool.c request.c
-OBJS = main.o config.o pool.o request.o
+SRCS = main.c config.c pool.c request.c parser.c
+OBJS = main.o config.o pool.o request.o parser.o
 EXEC = luafcgid
 
 all: $(SRCS) $(EXEC)

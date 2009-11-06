@@ -17,5 +17,6 @@ extern const struct luaL_Reg request_methods[];
 
 int req_puts(lua_State *L);
 int req_gets(lua_State *L);
+int req_parse(lua_State *L);
 
 #endif // REQUEST_H_INCLUDED

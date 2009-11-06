@@ -1,4 +1,5 @@
 #include "main.h"
+#include "parser.h"
 
 // utility functions
 
@@ -31,6 +32,7 @@ void luaL_pushrequest(lua_State* L, request_t* r) {
 const struct luaL_Reg request_methods[] = {
     {"gets", req_gets},
     {"puts", req_puts},
+    {"parse", req_parse},
     {NULL, NULL}
 };
 
@@ -69,9 +71,14 @@ int req_gets(lua_State *L) {
 
 int req_parse(lua_State *L) {
     request_t* r = NULL;
-    if (lua_gettop(L)) {
+    const char* s = NULL;
+    size_t l = 0;
+    if (lua_gettop(L) >= 2) {
         r = luaL_checkrequest(L, 1);
-
+        luaL_checkstring(L, 2);
+        s = lua_tolstring(L, 2, &l);
+        lua_newtable(L);
+        parser_decode(L, s);
     } else {
         lua_pushnil(L);
     }

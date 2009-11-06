@@ -62,6 +62,7 @@
 		<Unit filename="parser.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="parser.h" />
 		<Unit filename="pool.c">
 			<Option compilerVar="CC" />
 		</Unit>
