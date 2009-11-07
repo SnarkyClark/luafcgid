@@ -127,14 +127,13 @@ char* script_load(const char* fn, struct stat* fs) {
 
 // create an ISO timestamp
 void timestamp(char* ts) {
-	time_t t;
+	time_t t = time(NULL);
 	struct tm timeinfo;
-	time(&t);
 	if (localtime_r(&t, &timeinfo)) {
 		strftime(ts, 20, "%Y-%m-%d %H:%M:%S", &timeinfo);
 	} else {
-		strncpy(ts, "NULL", sizeof(ts));
-		ts[sizeof(ts) - 1] = '\0';
+		strncpy(ts, "NULL", 20);
+		ts[19] = '\0';
 	}
 }
 
@@ -144,14 +143,15 @@ void logit(const char* fmt, ...) {
     char ts[20] = {'\0'};
     char *str = NULL;
     // make a copy and add the timestamp
+    str = (char*)malloc(20 + strlen(fmt) + 2);
     timestamp(ts);
-    str = (char*)malloc(20 + strlen(fmt) + 1);
     sprintf(str, "%s %s\n", ts, fmt);
     // we just let stderr route it
     va_start(args, fmt);
     vfprintf(stderr, str, args);
     fflush(stderr);
     va_end(args);
+    free(str);
 }
 
 // worker and parent threads
@@ -159,6 +159,7 @@ void logit(const char* fmt, ...) {
 static void *worker_run(void *a) {
 	// shared vars
 	static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
+	static pthread_mutex_t lua_mutex = PTHREAD_MUTEX_INITIALIZER;
 	// local private vars
     int rc, i, j, k;
     char errtype[ERR_STR_SIZE + 1];
@@ -271,6 +272,7 @@ static void *worker_run(void *a) {
 			rc = STATUS_OK;
 		} else {
 			// make a new state
+			//pthread_mutex_lock(&lua_mutex);
 			L = lua_open();
 			if (!L) {
 				logit("[%d] unable to init lua!", params->wid);
@@ -289,6 +291,7 @@ static void *worker_run(void *a) {
 				// cleanup
 				free(fbuf);
             }
+			//pthread_mutex_unlock(&lua_mutex);
 
 			if (rc == STATUS_OK) {
 			    // pick which part of the pool to use
@@ -341,7 +344,16 @@ static void *worker_run(void *a) {
 				logit("   [%d] loaded '%s' into slot [%d]", params->wid, script, i);
 				#endif
             } else {
-                i = j;
+            	if (lua_isstring(L, -1)) {
+					// capture the error message
+					strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
+					errmsg[ERR_SIZE] = '\0';
+					lua_pop(L, 1);
+				}
+				//pthread_mutex_lock(&lua_mutex);
+				if (L) lua_close(L);
+				//pthread_mutex_unlock(&lua_mutex);
+				i = j;
             }
 		}
 
@@ -356,9 +368,15 @@ static void *worker_run(void *a) {
                 luaL_pushrequest(L, &req);
             	// call script handler
                 rc = lua_pcall(L, 2, 0, 0);
+				if (rc == LUA_ERRRUN || rc == LUA_ERRSYNTAX) {
+					// capture the error message
+					strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
+					errmsg[ERR_SIZE] = '\0';
+					lua_pop(L, 1);
+				}
             } else {
                 rc = LUA_ERRRUN;
-				lua_pushstring(L, "main() function not found");
+				strcpy(errmsg, "main() function not found");
             }
         }
 
@@ -374,16 +392,10 @@ static void *worker_run(void *a) {
 			case LUA_ERRRUN:
 				strncpy(errtype, LUA_ERRRUN_STR, ERR_STR_SIZE);
                	errtype[ERR_STR_SIZE] = '\0';
-               	strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
-               	errmsg[ERR_SIZE] = '\0';
-                lua_pop(L, 1);
 				break;
 			case LUA_ERRSYNTAX:
 				strncpy(errtype, LUA_ERRSYNTAX_STR, ERR_STR_SIZE);
                	errtype[ERR_STR_SIZE] = '\0';
-               	strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
-               	errmsg[ERR_SIZE] = '\0';
-                lua_pop(L, 1);
 				break;
 			case LUA_ERRMEM:
 				strncpy(errtype, LUA_ERRMEM_STR, ERR_STR_SIZE);
