@@ -14,7 +14,7 @@ void luaL_loadrequest(lua_State* L) {
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
     luaL_register(L, NULL, request_methods);
-    lua_pop(L, 2);
+    lua_pop(L, 1);
 }
 
 void luaL_pushrequest(lua_State* L, request_t* r) {
