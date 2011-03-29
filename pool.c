@@ -12,7 +12,7 @@ pool_t* pool_open(int count) {
 		memset(pool->slot, 0, sizeof(slot_t) * count);
 		// init pool
 		pool->count = count;
-		pool->mutex = PTHREAD_MUTEX_INITIALIZER;
+		pool->mutex = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 	}
 	return pool;
 }
