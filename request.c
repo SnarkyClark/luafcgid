@@ -30,6 +30,7 @@ void luaL_pushrequest(lua_State* L, request_t* r) {
 // request methods
 
 const struct luaL_Reg request_methods[] = {
+    {"header", req_header},
     {"gets", req_gets},
     {"puts", req_puts},
     {"parse", req_parse},
