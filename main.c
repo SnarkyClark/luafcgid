@@ -8,8 +8,6 @@
 
 #include "main.h"
 
-#define ERR_SIZE 1024
-
 const char* env_var[] = {
     // standard CGI environment variables as per CGI Specification 1.1
     "SERVER_SOFTWARE",
@@ -432,8 +430,10 @@ static void *worker_run(void *a) {
                 );
             }
         } else if (rc == STATUS_404) {
+			// TODO: custom 404 handler
 			HTTP_404(req.fcgi.out, script);
         } else {
+			// TODO: custom 500 handler
             HTTP_500(req.fcgi.out, errtype, errmsg);
         }
 
@@ -547,16 +547,8 @@ int main(int arc, char** argv) {
 	pool_close(pool);
 
     // dealloc config
-    if (conf->listen) free(conf->listen);
-    for (i = 0; i < HOOK_COUNT; i++) {
-        if (conf->hook[i]) {
-            for (j = 0; j < conf->hook[i]->count; j++) {
-                if (conf->hook[i]->chunk[j]) free(conf->hook[i]->chunk[j]);
-            }
-            free(conf->hook[i]);
-        }
-    }
-    free(conf->hook);
+    if (conf->L) lua_close(conf->L);
+	if (conf->listen) free(conf->listen);
     free(conf);
 
 	return 0;

@@ -4,7 +4,7 @@ config_t* config_load(const char* fn) {
 	int rc;
 	struct stat fs;
 	char* fbuf = NULL;
-	lua_State* L = NULL;
+    char errmsg[ERR_SIZE + 1];
 
     config_t* cf = (config_t*)malloc(sizeof(config_t));
     memset(cf, 0, sizeof(config_t));
@@ -25,28 +25,50 @@ config_t* config_load(const char* fn) {
     if (fn) fbuf = script_load(fn, &fs);
 	if (fbuf) {
         // make a new state
-        L = lua_open();
-        if (!L) return NULL;
-        luaL_openlibs(L);
+        conf->L = lua_open();
+        if (!conf->L) return NULL;
+        luaL_openlibs(conf->L);
 		// load and run buffer
-		rc = luaL_loadbuffer(L, fbuf, fs.st_size, fn);
-		if (rc == STATUS_OK) rc = lua_pcall(L, 0, 0, 0);
+		rc = luaL_loadbuffer(conf->L, fbuf, fs.st_size, fn);
+		if (rc == STATUS_OK) rc = lua_pcall(conf->L, 0, 0, 0);
 		// cleanup
 		free(fbuf);
 		if (rc == STATUS_OK) {
 			// transfer globals to config struct
-			luaL_getglobal_str(L, "listen", &cf->listen);
-			luaL_getglobal_int(L, "workers", &cf->workers);
-			luaL_getglobal_int(L, "states", &cf->states);
-			luaL_getglobal_int(L, "clones", &cf->clones);
-			luaL_getglobal_int(L, "sweep", &cf->sweep);
-			luaL_getglobal_int(L, "watchdog", &cf->watchdog);
-			luaL_getglobal_int(L, "retries", &cf->retries);
-			luaL_getglobal_int(L, "maxpost", &cf->maxpost);
-			luaL_getglobal_str(L, "logfile", &cf->logfile);
-			// TODO
+			luaL_getglobal_str(conf->L, "listen", &cf->listen);
+			luaL_getglobal_int(conf->L, "workers", &cf->workers);
+			luaL_getglobal_int(conf->L, "states", &cf->states);
+			luaL_getglobal_int(conf->L, "clones", &cf->clones);
+			luaL_getglobal_int(conf->L, "sweep", &cf->sweep);
+			luaL_getglobal_int(conf->L, "watchdog", &cf->watchdog);
+			luaL_getglobal_int(conf->L, "retries", &cf->retries);
+			luaL_getglobal_int(conf->L, "maxpost", &cf->maxpost);
+			luaL_getglobal_str(conf->L, "logfile", &cf->logfile);
+			luaL_getglobal_str(conf->L, "logfile", &cf->logfile);
+			luaL_getglobal_str(conf->L, "logfile", &cf->logfile);
+		} else {
+           	if (lua_isstring(L, -1)) {
+				// capture the error message
+				strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
+				errmsg[ERR_SIZE] = '\0';
+				lua_pop(L, 1);
+			} else {
+				errmsg[0] = NULL;
+			}
+			switch rc {
+				case LUA_ERRSYNTAX:
+					logit("[%d] %s: %s", 0, LUA_ERRSYNTAX_STR, errmsg);
+					break;
+				case LUA_ERRRUN:
+					logit("[%d] %s", 0, LUA_ERRRUN_STR);
+					break;
+				case LUA_ERRMEM:
+					logit("[%d] %s", 0, LUA_ERRMEM_STR);
+					break;
+				default:
+					logit("[%d] %s", 0, ERRUNKNOWN_STR);
+			}
 		}
-		lua_close(L);
 	}
 	return cf;
 }

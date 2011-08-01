@@ -16,7 +16,7 @@ struct config_struct {
 	int retries;
 	int maxpost;
 	char* logfile;
-	hook_t* hook[HOOK_COUNT];
+	lua_State* L; /* global Lua state */
 } typedef config_t;
 
 config_t* config_load(const char* fn);
