@@ -47,15 +47,15 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
 			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
 		} else {
-           	if (lua_isstring(L, -1)) {
+           	if (lua_isstring(cf->L, -1)) {
 				// capture the error message
 				strncpy(errmsg, lua_tostring(cf->L, -1), ERR_SIZE);
 				errmsg[ERR_SIZE] = '\0';
-				lua_pop(L, 1);
+				lua_pop(cf->L, 1);
 			} else {
 				errmsg[0] = NULL;
 			}
-			switch rc {
+			switch (rc) {
 				case LUA_ERRSYNTAX:
 					logit("[%d] %s: %s", 0, LUA_ERRSYNTAX_STR, errmsg);
 					break;
