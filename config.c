@@ -53,7 +53,7 @@ config_t* config_load(const char* fn) {
 				errmsg[ERR_SIZE] = '\0';
 				lua_pop(cf->L, 1);
 			} else {
-				errmsg[0] = NULL;
+				errmsg[0] = '\0';
 			}
 			switch (rc) {
 				case LUA_ERRSYNTAX:
