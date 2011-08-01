@@ -159,7 +159,7 @@ void logit(const char* fmt, ...) {
 static void *worker_run(void *a) {
 	// shared vars
 	static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
-	static pthread_mutex_t lua_mutex = PTHREAD_MUTEX_INITIALIZER;
+	// static pthread_mutex_t lua_mutex = PTHREAD_MUTEX_INITIALIZER;
 	// local private vars
     int rc, i, j, k;
     char errtype[ERR_STR_SIZE + 1];
