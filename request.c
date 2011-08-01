@@ -52,7 +52,7 @@ int req_header(lua_State *L) {
 			lua_pushnil(L);  /* first key */
 			while (lua_next(L, 2) != 0) {
 				/* uses 'key' (at index -2) and 'value' (at index -1) */
-				if lua_isstring(L, -2) {
+				if (lua_isstring(L, -2)) {
 					s1 = lua_tolstring(L, -2, &l1);
 					s2 = luaL_checklstring(L, -1, &l2);
 					s = (char*)malloc(sizeof(char) * (l1 + l2 + 4));
