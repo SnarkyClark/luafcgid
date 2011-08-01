@@ -25,31 +25,31 @@ config_t* config_load(const char* fn) {
     if (fn) fbuf = script_load(fn, &fs);
 	if (fbuf) {
         // make a new state
-        conf->L = lua_open();
-        if (!conf->L) return NULL;
-        luaL_openlibs(conf->L);
+        cf->L = lua_open();
+        if (!cf->L) return NULL;
+        luaL_openlibs(cf->L);
 		// load and run buffer
-		rc = luaL_loadbuffer(conf->L, fbuf, fs.st_size, fn);
-		if (rc == STATUS_OK) rc = lua_pcall(conf->L, 0, 0, 0);
+		rc = luaL_loadbuffer(cf->L, fbuf, fs.st_size, fn);
+		if (rc == STATUS_OK) rc = lua_pcall(cf->L, 0, 0, 0);
 		// cleanup
 		free(fbuf);
 		if (rc == STATUS_OK) {
 			// transfer globals to config struct
-			luaL_getglobal_str(conf->L, "listen", &cf->listen);
-			luaL_getglobal_int(conf->L, "workers", &cf->workers);
-			luaL_getglobal_int(conf->L, "states", &cf->states);
-			luaL_getglobal_int(conf->L, "clones", &cf->clones);
-			luaL_getglobal_int(conf->L, "sweep", &cf->sweep);
-			luaL_getglobal_int(conf->L, "watchdog", &cf->watchdog);
-			luaL_getglobal_int(conf->L, "retries", &cf->retries);
-			luaL_getglobal_int(conf->L, "maxpost", &cf->maxpost);
-			luaL_getglobal_str(conf->L, "logfile", &cf->logfile);
-			luaL_getglobal_str(conf->L, "logfile", &cf->logfile);
-			luaL_getglobal_str(conf->L, "logfile", &cf->logfile);
+			luaL_getglobal_str(cf->L, "listen", &cf->listen);
+			luaL_getglobal_int(cf->L, "workers", &cf->workers);
+			luaL_getglobal_int(cf->L, "states", &cf->states);
+			luaL_getglobal_int(cf->L, "clones", &cf->clones);
+			luaL_getglobal_int(cf->L, "sweep", &cf->sweep);
+			luaL_getglobal_int(cf->L, "watchdog", &cf->watchdog);
+			luaL_getglobal_int(cf->L, "retries", &cf->retries);
+			luaL_getglobal_int(cf->L, "maxpost", &cf->maxpost);
+			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
+			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
+			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
 		} else {
            	if (lua_isstring(L, -1)) {
 				// capture the error message
-				strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
+				strncpy(errmsg, lua_tostring(cf->L, -1), ERR_SIZE);
 				errmsg[ERR_SIZE] = '\0';
 				lua_pop(L, 1);
 			} else {
