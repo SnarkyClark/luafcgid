@@ -4,7 +4,7 @@
 struct slot_struct {
 	// always lock the pool mutex
 	// when reading OR writing the status
-	int status;
+	volatile int status;
 	// once you flag the slot with the STATUS_BUSY,
 	// unlock the mutex and you are
 	// free to mess with this stuff below
