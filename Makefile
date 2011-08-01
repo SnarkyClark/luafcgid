@@ -3,18 +3,18 @@ BASE = /usr/local
 # Lua 5.1
 LUAINC = $(BASE)/include/lua51
 LUALIB = $(BASE)/lib/lua51
-LIBS = -llua
+LLIB = lua
 
 ## LuaJIT2
 #LUAINC = $(BASE)/include/luajit-2.0
 #LUALIB = $(BASE)/lib
-#LIBS = -lluajit-5.1
+#LLIB = luajit-5.1
 
 # basic setup
 CC = gcc
 WARN = -Wall
 INCS = -I$(BASE)/include -I$(LUAINC)
-LIBS = -L$(BASE)/lib -L$(LUALIB) -lm -lpthread -lfcgi $(LIBS)
+LIBS = -L$(BASE)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
 INSTALL_DIR = $(BASE)/bin
 #DEBUG = -ggdb
 OPTS = -O2
