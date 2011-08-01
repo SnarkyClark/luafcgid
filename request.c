@@ -118,6 +118,7 @@ int req_parse(lua_State *L) {
         lua_newtable(L);
         parser_decode(L, s);
     } else {
+		// TODO: auto-parse
         lua_pushnil(L);
     }
     return 1;
