@@ -1,2 +1,0 @@
-luafcgid 
-pause
