@@ -15,27 +15,27 @@ CC = gcc
 WARN = -Wall
 INCS = -I$(BASE)/include -I$(LUAINC)
 LIBS = -L$(BASE)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
-INSTALL_DIR = $(BASE)/bin
 #DEBUG = -ggdb
 OPTS = -O2
 #OPTS = -O3 -march=native
 CFLAGS = $(INCS) $(WARN) $(OPTS) $(DEBUG) $G
 LDFLAGS = $(LIBS) $(OPTS) $(DEBUG)
+INSTALL_DIR = $(BASE)/bin
 
-SRCS = main.c config.c pool.c request.c parser.c
-OBJS = main.o config.o pool.o request.o parser.o
+SOURCES = main.c config.c pool.c request.c parser.c
+OBJECTS = $(SOURCES:.c=.o)
 EXEC = luafcgid
+	
+all: $(SOURCES) $(EXEC)
 
-all: $(SRCS) $(EXEC)
-
-$(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+$(EXEC): $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
 install: all
 	install -b $(EXEC) $(INSTALL_DIR)
 
 clean:
-	rm -f $(OBJS) $(EXEC)
+	rm -f $(OBJECTS) $(EXEC)
 
 
 
