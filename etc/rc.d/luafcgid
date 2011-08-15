@@ -2,29 +2,42 @@
 #
 # luafcgid for FreeBSD rc.d usage (c) 2009 STPeters
 #
-# PROVIDE: signet
+# PROVIDE: luafcgid
 # REQUIRE: DAEMON
-# BEFORE: LOGIN
 # KEYWORD: shutdown
 #
 # Add the following line to /etc/rc.conf to enable luafcgid:
 #
-#  luafcgid_enable="YES"
-#  # optional
-#  luafcgid_conf="/usr/local/etc/luafcgid.lua"
-#  luafcgid_user="www"
+# luafcgid_enable="YES"
+# luafcgid_conf="/usr/local/etc/luafcgid.lua"
+# luafcgid_user="www"
 
-. "/etc/rc.subr"
+. /etc/rc.subr
 
-luafcgid_enable=${luafcgi_enable:-"NO"}
-luafcgid_conf=${luafcgid_conf:-"/usr/local/etc/luafcgid.lua"}
-luafcgid_user=${luafcgid_user:-"www"}
-
-name=luafcgid
+name="luafcgid"
 rcvar=`set_rcvar`
 load_rc_config $name
-pidfile="/var/run/${name}.pid"
-command="su -m $luafcgid_user -c /usr/local/bin/luafcgid"
-command_args="$luafcgid_conf"
 
-run_rc_command "$1"
+: ${luafcgid_enable="NO"}
+: ${luafcgid_conf="/usr/local/etc/luafcgid.lua"}
+: ${luafcgid_user="www"}
+: ${luafcgid_group="www"}
+
+pidfile="/var/run/${name}.pid"
+command="/usr/local/bin/luafcgid"
+command_args="${luafcgid_conf}"
+
+start_postcmd="luafcgid_poststart"
+stop_postcmd="luafcgid_poststop"
+
+luafcgid_poststart()
+{
+	echo `pgrep -P 1 -U ${luafcgid_user} -n -f ${command}` >$pidfile
+}
+
+luafcgid_poststop()
+{
+    rm -f $pidfile
+}
+
+run_rc_command "${1}"
