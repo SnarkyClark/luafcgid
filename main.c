@@ -459,6 +459,65 @@ static void *worker_run(void *a) {
 
 }
 
+#ifdef WIN32
+void daemon(int nochdir, int noclose) {
+	/* No daemon() on Windows - use srvany */
+}
+#endif
+
+#ifdef NO_DAEMON
+/* just in case there are a few older Linux users out there... */
+#include <sys/resource.h>
+#include <fcntl.h>
+void daemon(int nochdir, int noclose) {
+	/* Turn this process into a daemon
+	* based on work by JOACHIM Jona <jaj@hcl-club.lu>
+	*/
+	pid_t pid;
+	struct rlimit fplim;
+	int i, fd0, fd1, fd2;
+
+	umask(0);
+
+	if((pid = fork()) < 0) {
+		logit("[DAEMON] unable to fork");
+		exit(1);
+	} else if(pid != 0) { /* parent */
+		exit(0);
+	}
+
+	if(setsid() < 0) { /* become a session leader, lose controlling terminal */
+		logit("[DAEMON] setsid error");
+		exit(1);
+	}
+	if(nochdir == 0) {
+		if(chdir("/") < 0) {
+			logit("[DAEMON] chdir error");
+			exit(1);
+		}
+	}
+	if(getrlimit(RLIMIT_NOFILE, &fplim) < 0) {
+		logit("[DAEMON] getrlimit error");
+		exit(1);
+	}
+	for(i = 0; i < fplim.rlim_max; i++) close(i); /* close all open files */
+
+	if(noclose == 0) {
+		/* open stdin, stdout, stderr to /dev/null */
+		fd0 = open("/dev/null", O_RDWR);
+		fd1 = dup(0);
+		fd2 = dup(0);
+
+		/* TODO: initialize syslog */
+
+		if(fd0 != 0 || fd1 != 1 || fd2 != 2) {
+			logit("[DAEMON] unexected file descriptors");
+			exit(1);
+		}
+	}
+}
+#endif
+
 int main(int arc, char** argv) {
 
     int i, j, sock;
@@ -478,6 +537,8 @@ int main(int arc, char** argv) {
 	} else {
 		conf = config_load("config.lua");
 	}
+
+	daemon(0, 0);
 
 	// redirect stderr to logfile
 	if (conf->logfile) freopen(conf->logfile, "w", stderr);
