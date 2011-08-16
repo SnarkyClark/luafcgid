@@ -56,7 +56,7 @@ int req_header(lua_State *L) {
 				if (lua_isstring(L, -2)) {
 					s1 = lua_tolstring(L, -2, &l1);
 					s2 = luaL_checklstring(L, -1, &l2);
-					s = (char*)malloc(sizeof(char) * (l1 + l2 + 4));
+					s = (char*)malloc(sizeof(char) * (l1 + l2 + 5));
 					l = sprintf(s, "%s: %s\r\n", s1, s2);
 					FCGX_PutStr(s, l, r->fcgi.out);
 					free(s);
