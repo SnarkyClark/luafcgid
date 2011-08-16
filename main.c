@@ -7,18 +7,6 @@
 
 #include "main.h"
 
-const char* env_var[] = {
-		// standard CGI environment variables as per CGI Specification 1.1
-		"SERVER_SOFTWARE", "SERVER_NAME", "GATEWAY_INTERFACE",
-		"SERVER_PROTOCOL", "SERVER_PORT", "REQUEST_METHOD", "PATH_INFO",
-		"PATH_TRANSLATED", "SCRIPT_NAME", "QUERY_STRING", "REMOTE_HOST",
-		"REMOTE_ADDR", "AUTH_TYPE", "REMOTE_USER", "REMOTE_IDENT",
-		"CONTENT_TYPE", "CONTENT_LENGTH", // WARNING! do NOT rely on this value
-		// common client variables
-		"HTTP_ACCEPT", "HTTP_USER_AGENT",
-		// not spec, but required for this to work
-		"SCRIPT_FILENAME", NULL, };
-
 // utility functions
 
 BOOL luaL_getglobal_int(lua_State* L, const char* name, int* v) {
@@ -53,19 +41,24 @@ BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v) {
 }
 
 void luaL_pushcgienv(lua_State* L, request_t* r) {
-	int i = 0;
+	char** p = r->fcgi.envp;
 	char* v = NULL;
+	// create new table on the stack
 	lua_newtable(L);
+	// add gratuitous version info
 	lua_pushinteger(L, LUAFCGID_VERSION);
 	lua_setfield(L, -2, "LUAFCGID_VERSION");
-	while (env_var[i]) {
-		v = FCGX_GetParam(env_var[i], r->fcgi.envp);
+	// iterate over the FCGI envp structure
+	if (p == NULL) return;
+	while (*p) {
+		// string is in format 'name=value'
+		v = strchr(*p, '=');
 		if (v) {
-			lua_pushstring(L, env_var[i]);
-			lua_pushstring(L, v);
+			lua_pushlstring(L, *p, v-*p);
+			lua_pushstring(L, ++v);
 			lua_settable(L, -3);
 		}
-		i++;
+		p++;
 	}
 }
 
@@ -346,6 +339,9 @@ static void *worker_run(void *a) {
 
 		if (rc == STATUS_OK) {
 			// we have a valid VM state, time to roll!
+#ifdef CHATTER
+			logit("[%d] running '%s', Lua stack size = %d", params->wid, script, lua_gettop(L));
+#endif
 			lua_getglobal(L, "main");
 			if (lua_isfunction(L, -1)) {
 				// prepare request object
@@ -446,7 +442,7 @@ static void *worker_run(void *a) {
 
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 void daemon(int nochdir, int noclose) {
 	/* No daemon() on Windows - use srvany */
 }
