@@ -1,6 +1,8 @@
 #include "main.h"
 #include "parser.h"
 
+const char* CRLF = "\r\n";
+
 // utility functions
 
 request_t* luaL_checkrequest(lua_State* L, int i) {
@@ -21,23 +23,20 @@ void luaL_pushrequest(lua_State* L, request_t* r) {
     lua_boxpointer(L, r);
     luaL_getmetatable(L, "LuaFCGId.Request");
     lua_setmetatable(L, -2);
-    //luaL_getmetatable(L, "FCGX.Request");
-    //luaL_pushcgienv(L, r);
-    //lua_setfield(L, -2, "env");
-    //lua_pop(L, 1);
 }
 
-// request methods
-
+/* request methods */
 const struct luaL_Reg request_methods[] = {
-    {"header", req_header},
-    {"gets", req_gets},
-    {"puts", req_puts},
-    {"parse", req_parse},
+    {"header", L_req_header},
+    {"gets", L_req_gets},
+    {"puts", L_req_puts},
+    {"config", L_req_config},
+    {"log", L_req_log},
     {NULL, NULL}
 };
 
-int req_header(lua_State *L) {
+/* r:header(string, string) */
+int L_req_header(lua_State *L) {
     request_t* r = NULL;
     char* s = NULL;
     const char* s1 = NULL;
@@ -45,7 +44,6 @@ int req_header(lua_State *L) {
     size_t l = 0;
     size_t l1= 0;
     size_t l2 = 0;
-	const char* newline = "\r\n";
     if (lua_gettop(L) >= 2) {
 		r = luaL_checkrequest(L, 1);
         if lua_istable(L, 2) {
@@ -56,10 +54,6 @@ int req_header(lua_State *L) {
 				if (lua_isstring(L, -2)) {
 					s1 = lua_tolstring(L, -2, &l1);
 					s2 = luaL_checklstring(L, -1, &l2);
-					s = (char*)malloc(sizeof(char) * (l1 + l2 + 5));
-					l = sprintf(s, "%s: %s\r\n", s1, s2);
-					FCGX_PutStr(s, l, r->fcgi.out);
-					free(s);
 				}
 				/* removes 'value'; keeps 'key' for next iteration */
 				lua_pop(L, 1);
@@ -70,13 +64,13 @@ int req_header(lua_State *L) {
 			FCGX_PutStr(s1, l1, r->fcgi.out);
 		}
 		/* add extra newline as per HTTP specs */
-		FCGX_PutStr(newline, 2, r->fcgi.out);
+		FCGX_PutStr(CRLF, 2, r->fcgi.out);
 	}
 	r->headers_sent = TRUE;
 	return 0;
 }
 
-int req_puts(lua_State *L) {
+int L_req_puts(lua_State *L) {
     request_t* r = NULL;
     const char* s = NULL;
     size_t l = 0;
@@ -85,12 +79,13 @@ int req_puts(lua_State *L) {
         s = luaL_checklstring(L, 2, &l);
         /* make sure headers are sent before any data */
         if(!r->headers_sent) {
-            /* default headers */
-            FCGX_FPrintF(r->fcgi.out,
+            send_headers(r);
+        	r->headers_sent = TRUE;
+
+        	FCGX_FPrintF(r->fcgi.out,
                 "Status: 200 OK\r\n"
                 "Content-Type: text/html\r\n\r\n"
             );
-            r->headers_sent = TRUE;
         }
         FCGX_PutStr(s, l, r->fcgi.out);
     }

@@ -14,11 +14,19 @@ config_t* config_load(const char* fn) {
 	strcpy(cf->listen, LISTEN_PATH);
     cf->workers = 3;
     cf->states = 5;
-    cf->clones = cf->states;
+    cf->clones = cf->workers;
     cf->sweep = 1000;
     cf->watchdog = 60;
     cf->retries = 2;
+    cf->headersize = 64;
+    cf->buffersize = 1024;
+    cf->HTTPstatus = HTTP_STATUS;
+    cf->HTTPtype = (char*)malloc(strlen(HANDLER) + 1);
+	strcpy(cf->listen, HANDLER);
+    cf->HTTPtype = (char*)malloc(strlen(HTTP_CONTENTTYPE) + 1);
+	strcpy(cf->listen, HTTP_CONTENTTYPE);
     cf->maxpost = 1024 * 1024;
+    cf->maxcount = 0;
 	cf->logfile = (char*)malloc(strlen(LOGFILE) + 1);
 	strcpy(cf->logfile, LOGFILE);
 
@@ -42,9 +50,13 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_int(cf->L, "sweep", &cf->sweep);
 			luaL_getglobal_int(cf->L, "watchdog", &cf->watchdog);
 			luaL_getglobal_int(cf->L, "retries", &cf->retries);
+			luaL_getglobal_int(cf->L, "headersize", &cf->headersize);
+			luaL_getglobal_int(cf->L, "buffersize", &cf->buffersize);
+			luaL_getglobal_str(cf->L, "handler", &cf->handler);
+			luaL_getglobal_int(cf->L, "HTTPstatus", &cf->HTTPstatus);
+			luaL_getglobal_str(cf->L, "HTTPtype", &cf->HTTPtype);
 			luaL_getglobal_int(cf->L, "maxpost", &cf->maxpost);
-			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
-			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
+			luaL_getglobal_int(cf->L, "maxcount", &cf->maxcount);
 			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
 		} else {
            	if (lua_isstring(cf->L, -1)) {
@@ -71,4 +83,14 @@ config_t* config_load(const char* fn) {
 		}
 	}
 	return cf;
+}
+
+void config_free(config_t* conf) {
+	if (conf) {
+		if (conf->L) lua_close(conf->L);
+		if (conf->listen) free(conf->listen);
+		if (conf->HTTPtype) free(conf->HTTPtype);
+		if (conf->handler) free(conf->handler);
+		free(conf);
+	}
 }

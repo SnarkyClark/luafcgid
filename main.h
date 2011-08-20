@@ -52,6 +52,9 @@
 
 #define LISTEN_PATH ":9000"
 #define LOGFILE "luafcgid.log"
+#define HTTP_STATUS 200
+#define HTTP_CONTENTTYPE "text\html"
+#define HANDLER "main"
 
 #define STATUS_OK 0
 #define STATUS_BUSY 1
