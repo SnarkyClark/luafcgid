@@ -14,11 +14,13 @@ struct config_struct {
 	int sweep;
 	int watchdog;
 	int retries;
-	int buffersize;
+	BOOL showerrors;
+	BOOL buffering;
 	int headersize;
+	int bodysize;
 	char* handler;
-	int HTTPstatus;
-	char* HTTPtype;
+	char* httpstatus;
+	char* contenttype;
 	int maxpost;
 	int maxcount;
 	char* logfile;

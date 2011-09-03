@@ -18,13 +18,16 @@ config_t* config_load(const char* fn) {
     cf->sweep = 1000;
     cf->watchdog = 60;
     cf->retries = 2;
+    cf->showerrors = TRUE;
+    cf->buffering = TRUE;
     cf->headersize = 64;
-    cf->buffersize = 1024;
-    cf->HTTPstatus = HTTP_STATUS;
-    cf->HTTPtype = (char*)malloc(strlen(HANDLER) + 1);
-	strcpy(cf->listen, HANDLER);
-    cf->HTTPtype = (char*)malloc(strlen(HTTP_CONTENTTYPE) + 1);
-	strcpy(cf->listen, HTTP_CONTENTTYPE);
+    cf->bodysize = 1024;
+    cf->handler = (char*)malloc(strlen(HANDLER) + 1);
+	strcpy(cf->handler, HANDLER);
+    cf->httpstatus = (char*)malloc(strlen(HTTP_STATUS) + 1);
+	strcpy(cf->httpstatus, HTTP_STATUS);
+    cf->contenttype = (char*)malloc(strlen(HTTP_CONTENTTYPE) + 1);
+	strcpy(cf->contenttype, HTTP_CONTENTTYPE);
     cf->maxpost = 1024 * 1024;
     cf->maxcount = 0;
 	cf->logfile = (char*)malloc(strlen(LOGFILE) + 1);
@@ -50,11 +53,13 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_int(cf->L, "sweep", &cf->sweep);
 			luaL_getglobal_int(cf->L, "watchdog", &cf->watchdog);
 			luaL_getglobal_int(cf->L, "retries", &cf->retries);
+			luaL_getglobal_bool(cf->L, "showerrors", &cf->showerrors);
+			luaL_getglobal_bool(cf->L, "buffering", &cf->buffering);
 			luaL_getglobal_int(cf->L, "headersize", &cf->headersize);
-			luaL_getglobal_int(cf->L, "buffersize", &cf->buffersize);
+			luaL_getglobal_int(cf->L, "bodysize", &cf->bodysize);
 			luaL_getglobal_str(cf->L, "handler", &cf->handler);
-			luaL_getglobal_int(cf->L, "HTTPstatus", &cf->HTTPstatus);
-			luaL_getglobal_str(cf->L, "HTTPtype", &cf->HTTPtype);
+			luaL_getglobal_str(cf->L, "httpstatus", &cf->httpstatus);
+			luaL_getglobal_str(cf->L, "contenttype", &cf->contenttype);
 			luaL_getglobal_int(cf->L, "maxpost", &cf->maxpost);
 			luaL_getglobal_int(cf->L, "maxcount", &cf->maxcount);
 			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
@@ -89,8 +94,10 @@ void config_free(config_t* conf) {
 	if (conf) {
 		if (conf->L) lua_close(conf->L);
 		if (conf->listen) free(conf->listen);
-		if (conf->HTTPtype) free(conf->HTTPtype);
 		if (conf->handler) free(conf->handler);
+		if (conf->httpstatus) free(conf->httpstatus);
+		if (conf->contenttype) free(conf->contenttype);
+		if (conf->logfile) free(conf->logfile);
 		free(conf);
 	}
 }
