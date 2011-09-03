@@ -22,7 +22,7 @@ CFLAGS = $(INCS) $(WARN) $(OPTS) $(DEBUG) $G
 LDFLAGS = $(LIBS) $(OPTS) $(DEBUG)
 INSTALL_DIR = $(BASE)/bin
 
-SOURCES = main.c config.c pool.c request.c parser.c
+SOURCES = main.c config.c pool.c request.c
 OBJECTS = $(SOURCES:.c=.o)
 EXEC = luafcgid
 	
