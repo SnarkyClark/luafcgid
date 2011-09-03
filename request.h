@@ -1,17 +1,19 @@
 #ifndef REQUEST_H_INCLUDED
 #define REQUEST_H_INCLUDED
 
+#include "buffer.h"
+
 struct request_struct {
     FCGX_Request fcgi;
+    /* output buffering */
     BOOL headers_sent;
-    char* header;
-    char* body;
+    buffer_t header;
+    buffer_t body;
+    /* local config */
     BOOL buffering;
-    int HTTPstatus;
-    char* HTTPtype;
-    int maxage;
-	int maxcount;
-    // READ ONLY vars!
+    char httpstatus[128];
+    char contenttype[128];
+    /* READ ONLY vars! */
     int wid;
     const config_t* conf;
 } typedef request_t;
@@ -22,13 +24,13 @@ void luaL_pushrequest(lua_State* L, request_t* r);
 
 extern const struct luaL_Reg request_methods[];
 
-/* r:header(string, string) */
+/* r:header(string, <string>) */
 int L_req_header(lua_State *L);
 /* r:puts(string) */
 int L_req_puts(lua_State *L);
 /* r:gets() returns string */
 int L_req_gets(lua_State *L);
-/* r:config(string, string) returns string */
+/* r:config(string, <string>) returns string */
 int L_req_config(lua_State *L);
 /* r:log(string) */
 int L_req_log(lua_State *L);

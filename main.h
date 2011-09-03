@@ -53,22 +53,14 @@
 #define LISTEN_PATH ":9000"
 #define LOGFILE "luafcgid.log"
 #define HTTP_STATUS 200
-#define HTTP_CONTENTTYPE "text\html"
+#define HTTP_CONTENTTYPE "text/html"
 #define HANDLER "main"
 
 #define STATUS_OK 0
 #define STATUS_BUSY 1
 #define STATUS_404 LUA_ERRFILE + 1
 
-#define HTTP_200(stream, data) \
-    FCGX_FPrintF(stream, \
-		"Status: 200 OK\r\n" \
-		"Content-Type: text/html\r\n\r\n" \
-		"%s", data)
-#define HTTP_404(stream, filename) \
-    FCGX_FPrintF(stream, \
-		"Status: 404 Not Found\r\n" \
-		"Content-Type: text/html\r\n\r\n" \
+#define HTTP_404 \
 		"<html>\r\n<head>\r\n" \
 		"<title>The page was not found</title>\r\n" \
 		"<style type='text/css'>\r\n" \
@@ -79,11 +71,9 @@
 		"<table width=\"100%%\" height=\"100%%\"><tr><td align=\"center\" valign=\"middle\">\r\n" \
 		"<p>The page you are looking for cannot be found</p><br/>" \
 		"<p class=\"details\">- <b>Filename</b> -<br/>\r\n<pre>\"%s\"</pre></p>\r\n" \
-		"</td></tr></table>\r\n</body>\r\n</html>", filename)
-#define HTTP_500(stream, errtype, errmsg) \
-    FCGX_FPrintF(stream, \
-		"Status: 500 Internal Server Error\r\n" \
-		"Content-Type: text/html\r\n\r\n" \
+		"</td></tr></table>\r\n</body>\r\n</html>"
+
+#define HTTP_500 \
 		"<html>\r\n<head>\r\n" \
 		"<title>The page is temporarily unavailable</title>\r\n" \
 		"<style type='text/css'>\r\n" \
@@ -95,7 +85,7 @@
 		"<p>The page you are looking for is temporarily unavailable.<br/>Please try again later.</p><br/>" \
 		"<p class=\"details\">- <b>%s</b> -<br/>\r\n<table><tr><td><pre>\r\n%s\r\n" \
 		"</pre></td></tr></table></p>\r\n" \
-		"</td></tr></table>\r\n</body>\r\n</html>", errtype, errmsg)
+		"</td></tr></table>\r\n</body>\r\n</html>"
 
 #define LUA_ERRFILE_STR "File Error"
 #define LUA_ERRRUN_STR "Runtime Error"
@@ -133,6 +123,7 @@ struct params_struct {
 	pool_t* pool;
 } typedef params_t;
 
+BOOL luaL_getglobal_bool(lua_State* L, const char* name, BOOL* v);
 BOOL luaL_getglobal_int(lua_State* L, const char* name, int* v);
 BOOL luaL_getglobal_str(lua_State* L, const char* name, char** v);
 
@@ -142,8 +133,8 @@ void luaL_pushcgienv(lua_State* L, request_t* r);
 char* script_load(const char* fn, struct stat* fs);
 void logit(const char* fmt, ...);
 config_t* config_load(const char* fn);
+void send_header(request_t* req);
 
-int req_gets(lua_State *L);
-int req_puts(lua_State *L);
+extern const char* CRLF;
 
 #endif // MAIN_H_INCLUDED

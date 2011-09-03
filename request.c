@@ -1,9 +1,7 @@
 #include "main.h"
 #include "parser.h"
 
-const char* CRLF = "\r\n";
-
-// utility functions
+/* utility functions */
 
 request_t* luaL_checkrequest(lua_State* L, int i) {
     luaL_checkudata(L, i, "LuaFCGId.Request");
@@ -35,41 +33,30 @@ const struct luaL_Reg request_methods[] = {
     {NULL, NULL}
 };
 
-/* r:header(string, string) */
+/* r:header(string, <string>) */
 int L_req_header(lua_State *L) {
     request_t* r = NULL;
-    char* s = NULL;
     const char* s1 = NULL;
     const char* s2 = NULL;
-    size_t l = 0;
-    size_t l1= 0;
-    size_t l2 = 0;
+    size_t l1, l2 = 0;
     if (lua_gettop(L) >= 2) {
 		r = luaL_checkrequest(L, 1);
-        if lua_istable(L, 2) {
-			/* parse out the headers table */
-			lua_pushnil(L);  /* first key */
-			while (lua_next(L, 2) != 0) {
-				/* uses 'key' (at index -2) and 'value' (at index -1) */
-				if (lua_isstring(L, -2)) {
-					s1 = lua_tolstring(L, -2, &l1);
-					s2 = luaL_checklstring(L, -1, &l2);
-				}
-				/* removes 'value'; keeps 'key' for next iteration */
-				lua_pop(L, 1);
-			}			
+		s1 = luaL_checklstring(L, 2, &l1);
+		if (lua_gettop(L) == 3) {
+			s2 = luaL_checklstring(L, 3, &l2);
+			buffer_add(&r->header, s1, l1);
+			buffer_add(&r->header, ": ", l1);
+			buffer_add(&r->header, s2, l1);
+			buffer_add(&r->header, CRLF, -1);
 		} else {
-			/* output as sent */
-			s1 = luaL_checklstring(L, 2, &l1);
-			FCGX_PutStr(s1, l1, r->fcgi.out);
+			buffer_add(&r->header, s1, l1);
+			buffer_add(&r->header, CRLF, -1);
 		}
-		/* add extra newline as per HTTP specs */
-		FCGX_PutStr(CRLF, 2, r->fcgi.out);
-	}
-	r->headers_sent = TRUE;
+    }
 	return 0;
 }
 
+/* r:puts(string) */
 int L_req_puts(lua_State *L) {
     request_t* r = NULL;
     const char* s = NULL;
@@ -77,22 +64,21 @@ int L_req_puts(lua_State *L) {
     if (lua_gettop(L) >= 2) {
         r = luaL_checkrequest(L, 1);
         s = luaL_checklstring(L, 2, &l);
-        /* make sure headers are sent before any data */
-        if(!r->headers_sent) {
-            send_headers(r);
-        	r->headers_sent = TRUE;
-
-        	FCGX_FPrintF(r->fcgi.out,
-                "Status: 200 OK\r\n"
-                "Content-Type: text/html\r\n\r\n"
-            );
+        if (r->buffering) {
+        	/* add to output buffer */
+        	buffer_add(&r->body, s, l);
+        } else {
+			/* make sure headers are sent before any data */
+			if(!r->headers_sent)
+				send_header(r);
+			FCGX_PutStr(s, l, r->fcgi.out);
         }
-        FCGX_PutStr(s, l, r->fcgi.out);
     }
     return 0;
 }
 
-int req_gets(lua_State *L) {
+/* r:gets() returns string */
+int L_req_gets(lua_State *L) {
     request_t* r = NULL;
     if (lua_gettop(L)) {
         r = luaL_checkrequest(L, 1);
@@ -103,18 +89,36 @@ int req_gets(lua_State *L) {
     return 1;
 }
 
-int req_parse(lua_State *L) {
+/* r:config(string, <string>) returns string */
+int L_req_config(lua_State *L) {
+    request_t* r = NULL;
+    const char* n = NULL;
+    const char* v = NULL;
+    size_t ln, lv = 0;
+    if (lua_gettop(L) >= 2) {
+        r = luaL_checkrequest(L, 1);
+        n = luaL_checklstring(L, 2, &ln);
+        if (lua_gettop(L) == 3) {
+            v = luaL_checklstring(L, 3, &lv);
+            /* TODO: set config value */
+        } else {
+            /* TODO: get config value */
+        	lua_pushnil(L);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* r:log(string) */
+int L_req_log(lua_State *L) {
     request_t* r = NULL;
     const char* s = NULL;
     size_t l = 0;
     if (lua_gettop(L) >= 2) {
         r = luaL_checkrequest(L, 1);
         s = luaL_checklstring(L, 2, &l);
-        lua_newtable(L);
-        parser_decode(L, s);
-    } else {
-		// TODO: auto-parse
-        lua_pushnil(L);
+        logit(s);
     }
-    return 1;
+    return 0;
 }
