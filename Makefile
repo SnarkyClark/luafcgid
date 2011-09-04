@@ -4,6 +4,7 @@ BASE = /usr/local
 LUAINC = $(BASE)/include/lua51
 LUALIB = $(BASE)/lib/lua51
 LLIB = lua
+LUA_PACKAGEPATH = $(BASE)/share/lua/5.1/
 
 ## LuaJIT2
 #LUAINC = $(BASE)/include/luajit-2.0
@@ -33,6 +34,7 @@ $(EXEC): $(OBJECTS)
 
 install: all
 	install -b $(EXEC) $(INSTALL_DIR)
+	install -b luafcgid.lua $(LUA_PACKAGEPATH)
 
 clean:
 	rm -f $(OBJECTS) $(EXEC)
