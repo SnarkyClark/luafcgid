@@ -45,8 +45,6 @@ int L_req_header(lua_State *L) {
 		s1 = luaL_checklstring(L, 2, &l1);
 		if (lua_gettop(L) == 3) {
 			s2 = luaL_checklstring(L, 3, &l2);
-			if (r->conf->headers)
-				buffer_add(&r->header, r->conf->headers, -1);
 			buffer_add(&r->header, s1, l1);
 			buffer_add(&r->header, ": ", -1);
 			buffer_add(&r->header, s2, l2);

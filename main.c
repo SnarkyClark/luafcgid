@@ -117,7 +117,10 @@ void send_header(request_t* req) {
 			req->contenttype);
 	FCGX_PutStr(header, strlen(header), req->fcgi.out);
 	free(header);
-	/* output any custom headers */
+	/* output any global custom headers */
+	if (req->conf->headers)
+		FCGX_PutStr(req->conf->headers, strlen(req->conf->headers), req->fcgi.out);
+	/* output any local custom headers */
 	if (req->header.len)
 		FCGX_PutStr(req->header.data, req->header.len, req->fcgi.out);
 	/* don't forget the CRLF terminator */
