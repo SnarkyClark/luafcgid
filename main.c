@@ -106,7 +106,7 @@ void luaL_pushcgicontent(lua_State* L, request_t* r) {
 
 void send_header(request_t* req) {
 	/* generate minimum headers */
-	char* header = malloc(strlen(req->httpstatus) + strlen(req->contenttype) + 5);
+	char* header = malloc(strlen(req->httpstatus) + strlen(req->contenttype) + 27);
 	if (!header) {
 		logit("out of memory!");
 		return;
@@ -217,7 +217,7 @@ static void *worker_run(void *a) {
 	}
 
 #ifdef CHATTER
-	logit("worker [%d] starting", params->wid);
+	logit("[%d] starting", params->wid);
 #endif
 
 	/* init request */
@@ -250,7 +250,7 @@ static void *worker_run(void *a) {
 			break;
 
 #ifdef CHATTER
-		logit("worker [%d] accepting connection", params->wid);
+		logit("[%d] accepting connection", params->wid);
 #endif
 
 		/* init loop vars */
@@ -278,28 +278,31 @@ static void *worker_run(void *a) {
 			}
 		}
 
-		/* search for running script in the state pool */
+		/* search for script in the state pool */
 		i = 0;
 		do {
 			#ifdef CHATTER
-			if (i) logit("   worker [%d] is retrying the script scan #%d", params->wid, k);
+			logit("\t[%d] searching for script '%s'", params->wid, script);
 			#endif
 
 			/* search the pool */
 			found = pool_scan_idle(pool, script);
 			if (found < 0) {
 				/* if we have max clones running, start over */
-				if (abs(++found) > req.conf->clones) i = -1;
+				if (abs(found + 1) > req.conf->clones) i = -1;
 				/* give someone else a chance to flag out */
 				usleep(1);
 			} else {
 				#ifdef CHATTER
-				logit("   worker [%d] found and locked slot [%d]", params->wid, found);
+				logit("\t[%d] found and locked state [%d]", params->wid, found);
 				#endif
 			}
 		} while ((found < 0) && (++i <= req.conf->retries));
 
 		if (found >= 0) {
+			#ifdef CHATTER
+			logit("\t[%d] using state [%d]", params->wid, found);
+			#endif
 			/* found a matching Lua VM state */
 			slot = pool_slot(pool, found);
 			L = slot->state;
@@ -308,7 +311,7 @@ static void *worker_run(void *a) {
 			/* make a new Lua VM state */
 			L = lua_open();
 			if (!L) {
-				logit("[%d] unable to init lua!", params->wid);
+				logit("\t[%d] unable to init lua!", params->wid);
 				return NULL;
 			}
 			luaL_openlibs(L);
@@ -317,6 +320,10 @@ static void *worker_run(void *a) {
 			fbuf = script_load(script, &fs);
 
 			if (fbuf) {
+				#ifdef CHATTER
+				logit("\t[%d] loaded '%s'", params->wid, script, found);
+				#endif
+
 				/* TODO: run state startup hook */
 				/* load and run buffer */
 				rc = luaL_loadbuffer(L, fbuf, fs.st_size, script);
@@ -332,7 +339,7 @@ static void *worker_run(void *a) {
 				do {
 					found = pool_scan_free(pool);
 #ifdef CHATTER
-					if (found >= 0) logit("   [%d] locked free slot [%d]", params->wid, found);
+					if (found >= 0) logit("\t[%d] locked free state [%d]", params->wid, found);
 #endif
 					if (found < 0) {
 						/* the pool is full & everyone is busy! */
@@ -345,9 +352,12 @@ static void *worker_run(void *a) {
 				pool_load(pool, found, L, script);
 				slot = pool_slot(pool, found);
 #ifdef CHATTER
-				logit("   [%d] loaded '%s' into slot [%d]", params->wid, script, found);
+				logit("\t[%d] loaded '%s' into state [%d]", params->wid, script, found);
 #endif
 			} else {
+#ifdef CHATTER
+				logit("\t[%d] '%s' errored out", params->wid, script);
+#endif
 				if (lua_isstring(L, -1)) {
 					/* capture the error message */
 					strncpy(errmsg, lua_tostring(L, -1), ERR_SIZE);
@@ -364,7 +374,7 @@ static void *worker_run(void *a) {
 		if (L) {
 			/* we have a valid VM state, time to roll! */
 #ifdef CHATTER
-			logit("[%d] running '%s', Lua stack size = %d", params->wid, script, lua_gettop(L));
+			logit("\t[%d] running '%s', Lua stack size = %d", params->wid, script, lua_gettop(L));
 #endif
 			lua_getglobal(L, req.conf->handler);
 			if (lua_isfunction(L, -1)) {
