@@ -30,6 +30,10 @@ int L_req_header(lua_State *L);
 int L_req_puts(lua_State *L);
 /* r:gets() returns string */
 int L_req_gets(lua_State *L);
+/* r:flush() */
+int L_req_flush(lua_State *L);
+/* r:reset() */
+int L_req_reset(lua_State *L);
 /* r:config(string, <string>) returns string */
 int L_req_config(lua_State *L);
 /* r:log(string) */

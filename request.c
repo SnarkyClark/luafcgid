@@ -27,6 +27,8 @@ const struct luaL_Reg request_methods[] = {
     {"header", L_req_header},
     {"gets", L_req_gets},
     {"puts", L_req_puts},
+    {"flush", L_req_flush},
+    {"reset", L_req_reset},
     {"config", L_req_config},
     {"log", L_req_log},
     {NULL, NULL}
@@ -72,6 +74,27 @@ int L_req_puts(lua_State *L) {
 				send_header(r);
 			FCGX_PutStr(s, l, r->fcgi.out);
         }
+    }
+    return 0;
+}
+
+/* r:flush() */
+int L_req_flush(lua_State *L) {
+    request_t* r = NULL;
+    if (lua_gettop(L)) {
+        r = luaL_checkrequest(L, 1);
+       	send_body(r);
+		r->body.len = 0;
+    }
+    return 0;
+}
+
+/* r:reset() */
+int L_req_reset(lua_State *L) {
+    request_t* r = NULL;
+    if (lua_gettop(L)) {
+        r = luaL_checkrequest(L, 1);
+        r->body.len = 0;
     }
     return 0;
 }

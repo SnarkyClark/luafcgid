@@ -129,7 +129,7 @@ void send_body(request_t* req) {
 	/* make sure headers have been sent first */
 	if (!req->headers_sent)
 		send_header(req);
-	/* send a buffered body if available */
+	/* send buffered body if available */
 	if (req->body.len > 0)
 		FCGX_PutStr(req->body.data, req->body.len, req->fcgi.out);
 }

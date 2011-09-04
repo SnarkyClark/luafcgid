@@ -133,7 +133,9 @@ void luaL_pushcgienv(lua_State* L, request_t* r);
 char* script_load(const char* fn, struct stat* fs);
 void logit(const char* fmt, ...);
 config_t* config_load(const char* fn);
+
 void send_header(request_t* req);
+void send_body(request_t* req);
 
 extern const char* CRLF;
 
