@@ -1,9 +1,8 @@
+local fcgi = require("luafcgid")
+
 function main(env, req)
-	--req:header('Status: 404 Not Found\r\n')
-	req:header({
-		['Status'] = '200 OK',
-		['Content-Type'] = 'text/html'
-	})
+	-- gotta give Lua some props
+	req:header("X-Powered-By", "Lua")
 	
 	req:puts("<h1>Environment</h1><pre>\n")
 	for n, v in pairs(env) do
@@ -13,7 +12,7 @@ function main(env, req)
 
 	if env.REQUEST_METHOD == "GET" then
 		s = {}  -- string sets are MUCH faster then calling req:puts() all the time
-		params = req:parse(env.QUERY_STRING)
+		params = fcgi.parse(env.QUERY_STRING)
 		table.insert(s, "<h1>GET Params</h1><pre>\n")
 		for n, v in pairs(params) do
 			table.insert(s, string.format("%s = %s\n", n, v))
@@ -26,5 +25,4 @@ function main(env, req)
 		req:puts("<h1>POST</h1>\n")
 		req:puts(string.format("<textarea>%s</textarea>", req:gets()))
 	end
-
 end
