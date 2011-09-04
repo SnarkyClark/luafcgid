@@ -32,6 +32,9 @@ headersize = 64
 -- starting buffer size for HTTP body 
 bodysize = 1024
 
+-- custom headers to add to all requests
+headers = "X-Powered-By: Lua\r\n"
+
 -- handler function name
 handler = "main"
 

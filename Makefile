@@ -16,7 +16,7 @@ CC = gcc
 WARN = -Wall
 INCS = -I$(BASE)/include -I$(LUAINC)
 LIBS = -L$(BASE)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
-DEBUG = -ggdb -DCHATTER
+DEBUG = -ggdb 
 OPTS = -O2
 #OPTS = -O3 -march=native
 CFLAGS = $(INCS) $(WARN) $(OPTS) $(DEBUG) $G

@@ -24,6 +24,8 @@ config_t* config_load(const char* fn) {
     cf->bodysize = 1024;
     cf->handler = (char*)malloc(strlen(HANDLER) + 1);
 	strcpy(cf->handler, HANDLER);
+	cf->headers = (char*)malloc(strlen(HEADERS) + 1);
+	strcpy(cf->headers, HEADERS);
     cf->httpstatus = (char*)malloc(strlen(HTTP_STATUS) + 1);
 	strcpy(cf->httpstatus, HTTP_STATUS);
     cf->contenttype = (char*)malloc(strlen(HTTP_CONTENTTYPE) + 1);
@@ -57,6 +59,7 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_bool(cf->L, "buffering", &cf->buffering);
 			luaL_getglobal_int(cf->L, "headersize", &cf->headersize);
 			luaL_getglobal_int(cf->L, "bodysize", &cf->bodysize);
+			luaL_getglobal_str(cf->L, "headers", &cf->headers);
 			luaL_getglobal_str(cf->L, "handler", &cf->handler);
 			luaL_getglobal_str(cf->L, "httpstatus", &cf->httpstatus);
 			luaL_getglobal_str(cf->L, "contenttype", &cf->contenttype);
@@ -95,6 +98,7 @@ void config_free(config_t* conf) {
 		if (conf->L) lua_close(conf->L);
 		if (conf->listen) free(conf->listen);
 		if (conf->handler) free(conf->handler);
+		if (conf->headers) free(conf->headers);
 		if (conf->httpstatus) free(conf->httpstatus);
 		if (conf->contenttype) free(conf->contenttype);
 		if (conf->logfile) free(conf->logfile);

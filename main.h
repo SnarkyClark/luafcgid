@@ -50,12 +50,6 @@
 #define TRUE 1
 #endif
 
-#define LISTEN_PATH ":9000"
-#define LOGFILE "luafcgid.log"
-#define HTTP_STATUS "200 OK"
-#define HTTP_CONTENTTYPE "text/html"
-#define HANDLER "main"
-
 #define STATUS_OK 0
 #define STATUS_BUSY 1
 #define STATUS_404 LUA_ERRFILE + 1
