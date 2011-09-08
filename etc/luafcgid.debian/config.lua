@@ -48,4 +48,3 @@ maxpost = 1024 * 1024
 
 -- full or relative path to logfile
 logfile = "/var/log/luafcgid/luafcgid.log"
-
