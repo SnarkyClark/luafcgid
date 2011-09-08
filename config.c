@@ -34,6 +34,7 @@ config_t* config_load(const char* fn) {
     cf->maxcount = 0;
 	cf->logfile = (char*)malloc(strlen(LOGFILE) + 1);
 	strcpy(cf->logfile, LOGFILE);
+	cf->backlog = -1;
 
     if (fn) fbuf = script_load(fn, &fs);
 	if (fbuf) {
@@ -66,6 +67,7 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_int(cf->L, "maxpost", &cf->maxpost);
 			luaL_getglobal_int(cf->L, "maxcount", &cf->maxcount);
 			luaL_getglobal_str(cf->L, "logfile", &cf->logfile);
+			luaL_getglobal_int(cf->L, "backlog", &cf->backlog);
 		} else {
            	if (lua_isstring(cf->L, -1)) {
 				// capture the error message

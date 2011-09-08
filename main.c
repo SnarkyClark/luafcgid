@@ -578,7 +578,7 @@ int main(int arc, char** argv) {
 
 	FCGX_Init();
 
-	sock = FCGX_OpenSocket(conf->listen, 100);
+	sock = FCGX_OpenSocket(conf->listen, conf->backlog);
 	if (!sock) {
 		logit("[PARENT] unable to create accept socket!");
 		return 1;
