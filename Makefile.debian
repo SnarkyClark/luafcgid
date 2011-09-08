@@ -29,7 +29,7 @@ $(EXEC): $(OBJECTS)
 
 install: all
 	@mkdir -p /etc/luafcgid
-	install -b etc/luafcgid/config.lua /etc/luafcgid/config.lua
+	install -b etc/luafcgid.debian/config.lua /etc/luafcgid/config.lua
 	install -b $(EXEC) $(INSTALL_DIR)
 	@mkdir -p $(LUA_PACKAGEPATH)
 	install -b luafcgid.lua $(LUA_PACKAGEPATH)
