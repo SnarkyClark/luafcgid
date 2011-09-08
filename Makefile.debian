@@ -1,0 +1,42 @@
+BASE = /usr
+
+# Lua 5.1
+LUAINC = $(BASE)/include/lua5.1
+LUALIB = $(BASE)/lib
+LLIB = lua5.1
+LUA_PACKAGEPATH = $(BASE)/share/lua/5.1/
+
+# basic setup
+CC = gcc
+WARN = -Wall
+INCS = -I$(BASE)/include -I$(LUAINC)
+LIBS = -L$(BASE)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
+DEBUG = -ggdb 
+OPTS = -O2
+#OPTS = -O3 -march=native
+CFLAGS = $(INCS) $(WARN) $(OPTS) $(DEBUG) $G
+LDFLAGS = $(LIBS) $(OPTS) $(DEBUG)
+INSTALL_DIR = $(BASE)/bin
+
+SOURCES = main.c config.c pool.c buffer.c request.c
+OBJECTS = $(SOURCES:.c=.o)
+EXEC = luafcgid
+	
+all: $(SOURCES) $(EXEC)
+
+$(EXEC): $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+
+install: all
+	@mkdir -p /etc/luafcgid
+	install -b etc/luafcgid.debian/config.lua /etc/luafcgid/config.lua
+	install -b $(EXEC) $(INSTALL_DIR)
+	@mkdir -p $(LUA_PACKAGEPATH)
+	install -b luafcgid.lua $(LUA_PACKAGEPATH)
+
+clean:
+	rm -f $(OBJECTS) $(EXEC)
+
+install-daemon: all
+	cp -f etc/init.d/luafcgid.debian /etc/init.d/luafcgid
+	update-rc.d -f luafcgid defaults

@@ -1,0 +1,32 @@
+## Install the build dependencies
+
+apt-get install build-essential liblua5.1-0-dev libfcgi-dev
+
+## Build luafcgid
+
+make -f Makefile.debian
+
+## Install luafcgid
+
+make -f Makefile.debian install
+
+This operation requires superuser privileges.
+
+## Install a basic init script
+
+make -f Makefile.debian install-init
+
+A basic init script is provided for convenience. It runs luafcgid under the
+system user www-data. Due to the fact that (for the moment?) luafcgid does not
+have support for dropping the superuser privileges, the start-stop-daemon
+wrapper is used for launching the daemon under a restricted user, while the
+paths for the UNIX socket and PID file are not the expected paths from /var/run.
+
+They are placed into /var/tmp:
+
+/var/tmp/luafcgid.pid - the location of the PID file
+/var/tmp/luafcgid.sock - the location of the listening UNIX socket
+
+The log file is placed here:
+
+/var/log/luafcgid/luafcgid.log
