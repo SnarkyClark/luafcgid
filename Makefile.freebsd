@@ -8,7 +8,7 @@ PREFIX = /usr/local
 # Directory in which to put the executable
 BINDIR = $(PREFIX)/bin
 # Directory in which to put runtime configuration
-CONFDIR = $(PREFIX)/etc
+CONFDIR = $(PREFIX)/etc/luafcgid
 # Directory in which to put rc.d/initd scripts
 INITDIR = $(PREFIX)/etc/rc.d
 # Directory in which to put Lua modules
@@ -20,8 +20,8 @@ LUALIB = $(PREFIX)/lib/lua51
 LLIB = lua
 
 ## LuaJIT2
-#LUAINC = $(prefix)/include/luajit-2.0
-#LUALIB = $(prefix)/lib
+#LUAINC = $(PREFIX)/include/luajit-2.0
+#LUALIB = $(PREFIX)/lib
 #LLIB = luajit-5.1
 
 SRCDIR = src
@@ -53,8 +53,8 @@ install: all
 	install -b $(EXEC) $(BINDIR)
 	@mkdir -p $(PACKAGEPATH)
 	install -b ../scripts/luafcgid.lua $(PACKAGEPATH)/luafcgid.lua
-	@mkdir -p $(CONFDIR)/luafcgid
-	install -b ../scripts/etc/config.lua $(CONFDIR)/luafcgid/config.lua
+	@mkdir -p $(CONFDIR)
+	install -b ../scripts/etc/config.freebsd.lua $(CONFDIR)/config.lua
 	install -b ../scripts/etc/rc.d/luafcgid $(INITDIR)/luafcgid
 
 clean:

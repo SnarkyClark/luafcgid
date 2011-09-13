@@ -1,0 +1,28 @@
+#!/bin/sh
+
+
+UNAME=`uname`
+echo "Ident: ${UNAME}"
+
+if [ -f Makefile ]; then
+	echo "Cleaning up..."
+	rm -f Makefile
+fi
+
+# FreeBSD
+if [ ${UNAME} = "FreeBSD" ]; then
+	echo "Configuring for FreeBSD..."
+	cp -vf Makefile.freebsd Makefile
+fi
+
+# Debian Linux
+if [ -f /etc/debian_version ]; then
+	echo "Configuring for Debian..."
+	cp -vf Makefile.debian Makefile
+fi
+
+# fallback Makefile
+if [ ! -f Makefile ]; then
+	echo "Configuring for generic..."
+	cp -vf Makefile.generic Makefile
+fi	

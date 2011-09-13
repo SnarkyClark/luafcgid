@@ -4,15 +4,7 @@ SHELL = /bin/sh
 .SUFFIXES: .c .o
 
 # Common prefix 
-PREFIX = /usr
-# Directory in which to put the executable
-BINDIR = $(PREFIX)/bin
-# Directory in which to put runtime configuration
-CONFDIR = /etc/luafcgid
-# Directory in which to put rc.d/initd scripts
-INITDIR = /etc/init.d
-# Directory in which to put Lua modules
-PACKAGEPATH = $(PREFIX)/share/lua/5.1
+PREFIX = /usr/local
 
 # Lua 5.1 config
 LUAINC = $(PREFIX)/include/lua51
@@ -49,16 +41,9 @@ all: $(SOURCES) $(EXEC)
 $(EXEC): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
-install: all
-	install -b $(EXEC) $(BINDIR)
-	@mkdir -p $(PACKAGEPATH)
-	install -b ../scripts/luafcgid.lua $(PACKAGEPATH)/luafcgid.lua
-	@mkdir -p $(CONFDIR)
-	install -b ../scripts/etc/config.debian.lua $(CONFDIR)/config.lua
-
 clean:
 	rm -f $(OBJECTS) $(EXEC)
 
-install-daemon: all
-	cp -f etc/init.d/luafcgid.debian $(INITDIR)/luafcgid
-	update-rc.d -f luafcgid defaults
+
+
+
