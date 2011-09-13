@@ -1,24 +1,32 @@
-** NOTE: debian build is broken with current commit, 
-please use https://github.com/STPeters/luafcgid/tarball/4b8e76a393c75a6f26631ae9e9ae0499aa368193
+-- Install the build dependencies
 
+# apt-get install build-essential liblua5.1-0-dev libfcgi-dev
 
-## Install the build dependencies
+-- Configure build
 
-apt-get install build-essential liblua5.1-0-dev libfcgi-dev
+# sh configure
 
-## Build luafcgid
+Ident: Linux
+Configuring for Debian...
+Makefile.debian -> Makefile
 
-make -f Makefile.debian
+-- Build luafcgid
 
-## Install luafcgid
+# make 
 
-make -f Makefile.debian install
+-- Install luafcgid
 
-This operation requires superuser privileges.
+**this operation requires superuser privileges**
 
-## Install a basic init script
+# make install
 
-make -f Makefile.debian install-init
+Config file will be placed at /etc/luafcgid/config.lua
+
+-- Install a basic init script
+
+**this operation requires superuser privileges**
+
+# make install-init
 
 A basic init script is provided for convenience. It runs luafcgid under the
 system user www-data. Due to the fact that (for the moment?) luafcgid does not

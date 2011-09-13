@@ -1,0 +1,47 @@
+-- Install the build dependencies
+
+Using packages:
+
+# pkg_add -r lua
+# pkg_add -r fcgi-devkit
+
+Using ports:
+
+# cd /usr/ports/www/fcgi && make install clean
+# cd /usr/ports/lang/lua && make install clean
+
+-- Configure build
+
+# sh configure
+
+Ident: FreeBSD
+Configuring for FreeBSD...
+Makefile.freebsd -> Makefile
+
+-- Build luafcgid
+
+# make
+
+-- Install luafcgid
+
+**this operation requires superuser privileges**
+
+# make install
+
+A rc.d script will be installed, see rc.conf entries below. Config file will be 
+placed at /usr/local/etc/luafcgid/config.lua
+
+/var/run/luafcgid.pid - the location of the PID file
+/var/tmp/luafcgid.sock - the location of the listening UNIX socket
+
+The log file is placed here:
+
+/var/log/luafcgid/luafcgid.log
+
+-- Enable daemon
+
+Add folling line(s) to rc.conf:
+
+luafcgid_enable="YES"
+luafcgid_user="www"
+
