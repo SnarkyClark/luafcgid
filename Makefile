@@ -4,25 +4,19 @@ SHELL = /bin/sh
 .SUFFIXES: .c .o
 
 # Common prefix 
-# NOTE: This directory must exist when you start installation.
-prefix = /usr/local
-exec_prefix = $(prefix)
+PREFIX = /usr/local
 # Directory in which to put the executable
-bindir = $(exec_prefix)/bin
+BINDIR = $(PREFIX)/bin
 # Directory in which to put runtime configuration
-sysconfdir = $(prefix)/etc
+CONFDIR = $(PREFIX)/etc
 # Directory in which to put rc.d/initd scripts
-initdir = $(exec_prefix)/etc/rc.d
+INITDIR = $(PREFIX)/etc/rc.d
 # Directory in which to put Lua modules
-packagepath = $(prefix)/share/lua/5.1
-packagecpath = $(prefix)/lib/lua/5.1
-
-SRCDIR = src
-OBJDIR = obj
+PACKAGEPATH = $(PREFIX)/share/lua/5.1
 
 # Lua 5.1 config
-LUAINC = $(prefix)/include/lua51
-LUALIB = $(prefix)/lib/lua51
+LUAINC = $(PREFIX)/include/lua51
+LUALIB = $(PREFIX)/lib/lua51
 LLIB = lua
 
 ## LuaJIT2
@@ -30,11 +24,14 @@ LLIB = lua
 #LUALIB = $(prefix)/lib
 #LLIB = luajit-5.1
 
+SRCDIR = src
+OBJDIR = obj
+
 # basic setup
 CC = gcc
 WARN = -Wall
-INCS = -I./$(SRCDIR) -I$(prefix)/include -I$(LUAINC)
-LIBS = -L$(prefix)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
+INCS = -I./$(SRCDIR) -I$(PREFIX)/include -I$(LUAINC)
+LIBS = -L$(PREFIX)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
 #DEBUG = -ggdb 
 OPTS = -O2
 #OPTS = -O3 -march=native
@@ -53,12 +50,12 @@ $(EXEC): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
 install: all
-	install -b $(EXEC) $(bindir)
-	@mkdir -p $(packagepath)
-	install -b ../scripts/luafcgid.lua $(packagepath)/luafcgid.lua
-	@mkdir -p $(sysconfdir)/luafcgid
-	install -b ../scripts/etc/config.lua $(sysconfdir)/luafcgid/config.lua
-	install -b ../scripts/etc/rc.d/luafcgid $(initdir)/luafcgid
+	install -b $(EXEC) $(BINDIR)
+	@mkdir -p $(PACKAGEPATH)
+	install -b ../scripts/luafcgid.lua $(PACKAGEPATH)/luafcgid.lua
+	@mkdir -p $(CONFDIR)/luafcgid
+	install -b ../scripts/etc/config.lua $(CONFDIR)/luafcgid/config.lua
+	install -b ../scripts/etc/rc.d/luafcgid $(INITDIR)/luafcgid
 
 clean:
 	rm -f $(OBJECTS) $(EXEC)
