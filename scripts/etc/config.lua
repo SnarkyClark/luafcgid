@@ -2,10 +2,10 @@
 
 -- port or socket path to listen to
 -- listen = "127.0.0.1:9000"
-listen = "/var/tmp/luafcgid.socket"
+listen = "/var/tmp/luafcgid.sock"
 
 -- number of worker threads
-workers = 3
+workers = 4
 
 -- max number of Lua VM states (NOTE: value needs to be larger then or equal to "workers")
 states = workers * 2
@@ -48,5 +48,5 @@ contenttype = "text/html"
 maxpost = 1024 * 1024
 
 -- full or relative path to logfile
-logfile = "luafcgid.log"
+logfile = "/var/log/luafcgid/luafcgid.log"
 
