@@ -11,7 +11,7 @@ function main(env, req)
 	req:puts("</pre>\n")
 
 	if env.REQUEST_METHOD == "GET" then
-		s = {}  -- string sets are MUCH faster then calling req:puts() all the time
+		s = {}  -- string sets are faster then calling req:puts() all the time
 		params = fcgi.parse(env.QUERY_STRING)
 		table.insert(s, "<h1>GET Params</h1><pre>\n")
 		for n, v in pairs(params) do

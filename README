@@ -4,13 +4,13 @@ luafcgid - a statefull FastCGI daemon for Lua
 SUMMARY
 ---
 
-luafcgid is a multithreaded FastCGI server that runs under BSD/Linux/MacOSX and
-Windows (using MinGW and pthreads32). It manages a number of independent, 
-persistent Lua states, that are then loaded with Lua scripts from the file 
-system. These scripts are loaded/initialized on demand, and held in memory for 
-as long as possible. The Lua scripts are also allowed to interface with the 
-FastCGI libraries: thus providing an extremely fast, streamlined and 
-lightweight platform from which to develop web-centric apps in Lua.
+luafcgid is a multithreaded FastCGI server that runs under BSD/Linux.
+It manages a number of independent, persistent Lua states, that are then loaded
+with Lua scripts from the file system. These scripts are loaded/initialized
+on demand, and held in memory for as long as possible. The Lua scripts are also
+allowed to interface with the FastCGI libraries: thus providing an extremely
+fast, streamlined and lightweight platform from which to develop web-centric
+apps in Lua.
 
 ---
 LICENSE
@@ -49,10 +49,10 @@ All development testing is done with the following server platform:
 
 Hardware:
 
-Pentium 4 3+ Ghz
+Pentium 4 3.2 Ghz
 Intel MB chipset
 Intel Pro+ 1GB ethernet
-2GB RAM
+256MB RAM
 
 Software:
 
@@ -60,7 +60,6 @@ FreeBSD - last stable release
 nginx web server - last stable release
 Lua - last stable release
 libthr - drop-in replacement for libpthread
-
 
 ** NOTE: Further testing may be done on other platforms when available. 
 ** Volunteers welcome. 
@@ -77,22 +76,19 @@ libpthread/libthr/pthreadw32
 INSTALLATION
 ---
 
-Linux/MacOSX:
+See the INSTALL file for your platform. If you do not see a INSTALL file for
+your platform, then you can try to use the generic build by running:
 
-- edit Makefile for proper inc/lib/install paths
-# make install clean
+# sh configure
+# make
 
-FreeBSD:
+You may have to modify the Makefile created by the configure script, and will
+have to install manually. Any platform or distribution-specific Makefiles and
+initd/rc.d scripts are always welcome and can be submitted by github pull
+request, or directly to me:
 
-- install following ports
-* lang/lua
-* www/fcgi
-# make install clean
+stefan (at) chehalispost.com
 
-Windows:
-
-(optional) open luafcgid.cbp in code::blocks, compile
-copy all files in bin/Release dir to destination dir
 
 Webserver (nginx):
 
@@ -100,11 +96,8 @@ add the following lines to your server{} section:
    
    location ~ \.lua$ {
 	  
-	  # for Windows
-      fastcgi_pass   127.0.0.1:9000;
-	  
-	  # for BSD/Linux/MacOSX
-      fastcgi_pass   unix:/var/tmp/luafcgid.socket;
+	  # for BSD/Linux
+      fastcgi_pass   unix:/var/tmp/luafcgid.sock;
       
 	  fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
       include        fastcgi_params;
@@ -145,170 +138,3 @@ aging are used to decide which states to flush and reload with a new script.
 Global housekeeping is run on a regular cycle (heartbeat) independent of 
 requests. Current tasks include flushing any loaded scripts that have been 
 modified. More tasks may be added in the future.
-
----
-PERFORMANCE
----
-
-Preliminary testing (with 10 worker threads) indicates that this may be a
-workable design...
-
-luafcgid config:
-
-WORKER_COUNT = 10
-VM_COUNT = 15
-
-=====
-test1.lua
----
-s = "Hello Word"
-
-function handler()
-	return s
-end
----
-
--= nginx-0.7.62 + luafcgid =-
-
-Server Software:        nginx/0.7.62
-Server Hostname:        10.0.0.18
-Server Port:            80
-
-Document Path:          /test1.lua
-Document Length:        87 bytes
-
-Concurrency Level:      10
-Time taken for tests:   2.172 seconds
-Complete requests:      10000
-Failed requests:        0
-Write errors:           0
-Total transferred:      2320000 bytes
-HTML transferred:       870000 bytes
-Requests per second:    4604.76 [#/sec] (mean)
-Time per request:       2.172 [ms] (mean)
-Time per request:       0.217 [ms] (mean, across all concurrent requests)
-Transfer rate:          1043.27 [Kbytes/sec] received
-
-Connection Times (ms)
-              min  mean[+/-sd] median   max
-Connect:        0    0   0.1      0       1
-Processing:     1    2   0.2      2       4
-Waiting:        1    2   0.2      2       4
-Total:          1    2   0.2      2       4
-
-Percentage of the requests served within a certain time (ms)
-  50%      2
-  66%      2
-  75%      2
-  80%      2
-  90%      2
-  95%      2
-  98%      3
-  99%      3
- 100%      4 (longest request)
-
-CPU: 23.1% user,  0.0% nice, 46.7% system,  0.1% interrupt, 30.2% idle
-Mem: 72M Active, 1528M Inact, 221M Wired, 104K Cache, 112M Buf, 177M Free
-Swap: 4063M Total, 4063M Free
-
-  PID USERNAME  THR PRI NICE   SIZE    RES STATE   C   TIME   WCPU COMMAND
-77657 www         1  97    0  6156K  4216K CPU1    1   1:32  7.86% nginx
-77711 www        11   8    0  6928K  2208K nanslp  1   0:05  0.10% luafcgid
-
--= apache-2.2.13 + mod_wombat =-
-
-Server Software:        Apache/2.2.13
-Server Hostname:        10.0.0.18
-Server Port:            80
-
-Document Path:          /test1.lua
-Document Length:        11 bytes
-
-Concurrency Level:      10
-Time taken for tests:   38.915 seconds
-Complete requests:      100000
-Failed requests:        0
-Write errors:           0
-Total transferred:      22100000 bytes
-HTML transferred:       1100000 bytes
-Requests per second:    2569.68 [#/sec] (mean)
-Time per request:       3.892 [ms] (mean)
-Time per request:       0.389 [ms] (mean, across all concurrent requests)
-Transfer rate:          554.59 [Kbytes/sec] received
-
-Connection Times (ms)
-              min  mean[+/-sd] median   max
-Connect:        0    0   0.1      0       4
-Processing:     1    4  17.0      3    2096
-Waiting:        1    4  16.7      3    2094
-Total:          1    4  17.0      3    2097
-
-Percentage of the requests served within a certain time (ms)
-  50%      3
-  66%      3
-  75%      4
-  80%      4
-  90%      4
-  95%      5
-  98%     13
-  99%     34
- 100%   2097 (longest request)
-
-CPU: 63.6% user,  0.0% nice, 36.3% system,  0.0% interrupt,  0.1% idle
-Mem: 124M Active, 1469M Inact, 177M Wired, 34M Cache, 112M Buf, 193M Free
-Swap: 4063M Total, 4063M Free
-
-=====
-test4.lua
----
-require('md5')
-require('base64')
-s = "Hello World"
-function handler()
-   return string.format("%s = %s", s, md5.digest(base64.encode(s)))
-end
----
-
--= nginx-0.7.62 + luafcgid =-
-
-Requests per second:    4181.70 [#/sec] (mean)
-Time per request:       2.391 [ms] (mean)
-Time per request:       0.239 [ms] (mean, across all concurrent requests)
-
-Percentage of the requests served within a certain time (ms)
-  50%      2
-  66%      2
-  75%      2
-  80%      2
-  90%      3
-  95%      3
-  98%      3
-  99%      3
- 100%     26 (longest request)
-
-CPU: 23.7% user,  0.0% nice, 48.2% system,  0.0% interrupt, 28.1% idle
-Mem: 86M Active, 1468M Inact, 193M Wired, 34M Cache, 112M Buf, 218M Free
-Swap: 4063M Total, 4063M Free
-
--= apache-2.2.13 + mod_wombat =-
-
-Requests per second:    584.01 [#/sec] (mean)
-Time per request:       17.123 [ms] (mean)
-Time per request:       1.712 [ms] (mean, across all concurrent requests)
-
-Percentage of the requests served within a certain time (ms)
-  50%     12
-  66%     15
-  75%     16
-  80%     18
-  90%     28
-  95%     47
-  98%     80
-  99%    100
- 100%   1414 (longest request)
-
-CPU: 68.3% user,  0.0% nice, 31.7% system,  0.0% interrupt,  0.0% idle
-Mem: 121M Active, 1470M Inact, 187M Wired, 34M Cache, 112M Buf, 186M Free
-Swap: 4063M Total, 4063M Free
-
-
