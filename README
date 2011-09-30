@@ -1,8 +1,4 @@
-luafcgid - a statefull FastCGI daemon for Lua
-
----
-SUMMARY
----
+# Summary
 
 luafcgid is a multithreaded FastCGI server that runs under BSD/Linux.
 It manages a number of independent, persistent Lua states, that are then loaded
@@ -12,87 +8,62 @@ allowed to interface with the FastCGI libraries: thus providing an extremely
 fast, streamlined and lightweight platform from which to develop web-centric
 apps in Lua.
 
----
-LICENSE
----
+# Support
 
-LuaFCGId is provided under the simplified BSD license:
+There is a support forum available at http://forum.luahub.com/index.php?board=17.0
 
-Copyright 2011 Stefan Peters, all rights reserved.
+# License
 
-Redistribution and use in source and binary forms, with or without modification, 
-are permitted provided that the following conditions are met:
+See the LICENSE file included with the source code
 
-    Redistributions of source code must retain the above copyright notice, this
-    list of conditions and the following disclaimer.
 
-    Redistributions in binary form must reproduce the above copyright notice, 
-    this list of conditions and the following disclaimer in the documentation 
-    and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE ORIGINAL AUTHOR ``AS IS'' AND ANY EXPRESS OR 
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
-MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
-SHALL THE ORIGINAL AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, 
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
-POSSIBILITY OF SUCH DAMAGE.
-
----
+# Testing
 
 All development testing is done with the following server platform:
 
 -= luafcgid reference platform =-
 
-Hardware:
+## Hardware:
 
 Pentium 4 3.2 Ghz
 Intel MB chipset
 Intel Pro+ 1GB ethernet
 256MB RAM
 
-Software:
+## Software:
 
-FreeBSD - last stable release
-nginx web server - last stable release
-Lua - last stable release
-libthr - drop-in replacement for libpthread
++ FreeBSD - last stable release
++ nginx web server - last stable release
++ Lua - last stable release
++ libthr - drop-in replacement for libpthread
 
-** NOTE: Further testing may be done on other platforms when available. 
-** Volunteers welcome. 
+*NOTE: Further testing may be done on other platforms when available.* 
+*Volunteers welcome.* 
 
----
-PREREQUISITES
----
+# PREREQUISITES
 
-Lua 5.1
-libfcgi 2.4
-libpthread/libthr/pthreadw32
++ Lua 5.1
++ libfcgi 2.4
++ libpthread/libthr/pthreadw32
 
----
-INSTALLATION
----
+# INSTALLATION
 
 See the INSTALL file for your platform. If you do not see a INSTALL file for
 your platform, then you can try to use the generic build by running:
 
-# sh configure
-# make
+    # sh configure
+    # make
 
 You may have to modify the Makefile created by the configure script, and will
 have to install manually. Any platform or distribution-specific Makefiles and
 initd/rc.d scripts are always welcome and can be submitted by github pull
-request, or directly to me:
+request, or to the support forum:
 
-stefan (at) chehalispost.com
+http://forum.luahub.com/index.php?board=17.0
 
+## Webserver (nginx):
 
-Webserver (nginx):
-
-add the following lines to your server{} section:
+Add the following lines to your server{} section:
    
    location ~ \.lua$ {
 	  
@@ -105,9 +76,7 @@ add the following lines to your server{} section:
 
 (make sure your root directive is set correctly)
    
----
-DESIGN
----
+# DESIGN
 
 luafcgid spawns and manages a number of worker threads that each contain an 
 isolated blocking accept loop. The FastCGI libraries provide a connect queue 
