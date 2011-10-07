@@ -39,4 +39,4 @@ int L_req_config(lua_State *L);
 /* r:log(string) */
 int L_req_log(lua_State *L);
 
-#endif // REQUEST_H_INCLUDED
+#endif /* REQUEST_H_INCLUDED */

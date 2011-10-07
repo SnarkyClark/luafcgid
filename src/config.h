@@ -39,4 +39,4 @@ struct config_struct {
 config_t* config_load(const char* fn);
 void config_free(config_t* conf);
 
-#endif // CONFIG_H_INCLUDED
+#endif /* CONFIG_H_INCLUDED */

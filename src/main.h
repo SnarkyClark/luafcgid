@@ -112,7 +112,7 @@ struct params_struct {
 	pid_t pid;
 	int wid;
 	int sock;
-	// READ ONLY config!
+	/* READ ONLY config! */
 	const config_t* conf;
 	pool_t* pool;
 } typedef params_t;
@@ -133,4 +133,4 @@ void send_body(request_t* req);
 
 extern const char* CRLF;
 
-#endif // MAIN_H_INCLUDED
+#endif /* MAIN_H_INCLUDED */

@@ -33,4 +33,4 @@ int pool_scan_free(pool_t* pool);
 void pool_load(pool_t* pool, int index, lua_State* L, char* name);
 void pool_flush(pool_t* pool, int index);
 
-#endif // POOL_H_INCLUDED
+#endif /* POOL_H_INCLUDED */

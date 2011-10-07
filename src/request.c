@@ -3,8 +3,9 @@
 /* utility functions */
 
 request_t* luaL_checkrequest(lua_State* L, int i) {
+    request_t* r = NULL;
     luaL_checkudata(L, i, "LuaFCGId.Request");
-    request_t* r = (request_t*)lua_unboxpointer(L, i);
+    r = (request_t*)lua_unboxpointer(L, i);
     return r;
 }
 

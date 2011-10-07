@@ -34,7 +34,8 @@ CC = gcc
 WARN = -Wall
 INCS = -I$(PREFIX)/include -I$(LUAINC)
 LIBS = -L$(PREFIX)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
-#DEBUG = -ggdb 
+#DEBUG = -ggdb
+WARN = -pedantic -ansi -std=c89
 OPTS = -O2
 #OPTS = -O3 -march=native
 CFLAGS = $(INCS) $(WARN) $(OPTS) $(DEBUG) $G

@@ -20,7 +20,7 @@ pool_t* pool_open(int count) {
 void pool_close(pool_t* pool) {
 	int i = 0;
     if (pool) {
-		// dealloc pool
+		/* dealloc pool */
     	pool_lock(pool);
 		for (i = 0; i < pool->count; i++) pool_flush(pool, i);
     	pool_unlock(pool);
@@ -133,7 +133,7 @@ void pool_flush(pool_t* pool, int index) {
 	/* shut it down */
 	if(slot->state) {
 		lua_close(slot->state);
-        // TODO: run state shutdown hook
+        /* TODO: run state shutdown hook */
         slot->state = NULL;
 	}
 	/* sweep it up */

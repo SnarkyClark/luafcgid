@@ -141,9 +141,9 @@ char* script_load(const char* fn, struct stat* fs) {
 	FILE* fp = NULL;
 	char* fbuf = NULL;
 
-	// does it even exist?
+	/* does it even exist? */
 	if (stat(fn, fs) == STATUS_OK) {
-		// is it a file of more then 0 bytes?
+		/* is it a file of more then 0 bytes? */
 		if (S_ISREG(fs->st_mode) && fs->st_size) {
 			fp = fopen(fn, "rb");
 			if (fp) {
@@ -158,7 +158,7 @@ char* script_load(const char* fn, struct stat* fs) {
 	return fbuf;
 }
 
-// create an ISO timestamp
+/* create an ISO timestamp */
 void timestamp(char* ts) {
 	time_t t = time(NULL);
 	struct tm timeinfo;
@@ -170,16 +170,16 @@ void timestamp(char* ts) {
 	}
 }
 
-// log a string and vars with a timestamp
+/* log a string and vars with a timestamp */
 void logit(const char* fmt, ...) {
 	va_list args;
 	char ts[20] = { '\0' };
 	char *str = NULL;
-	// make a copy and add the timestamp
+	/* make a copy and add the timestamp */
 	str = (char*) malloc(20 + strlen(fmt) + 2);
 	timestamp(ts);
 	sprintf(str, "%s %s\n", ts, fmt);
-	// we just let stderr route it
+	/* we just let stderr route it */
 	va_start(args, fmt);
 	vfprintf(stderr, str, args);
 	fflush(stderr);
@@ -572,7 +572,7 @@ int main(int arc, char** argv) {
 
 	daemon(0, 0);
 
-	// redirect stderr to logfile
+	/* redirect stderr to logfile */
 	if (conf->logfile)
 		freopen(conf->logfile, "w", stderr);
 
@@ -601,13 +601,13 @@ int main(int arc, char** argv) {
 	memset(params, 0, sizeof(params_t) * conf->workers);
 
 	for (i = 0; i < conf->workers; i++) {
-		// initialize worker params
+		/* initialize worker params */
 		params[i].pid = pid;
 		params[i].wid = i;
 		params[i].sock = sock;
 		params[i].pool = pool;
 		params[i].conf = conf;
-		// create worker thread
+		/* create worker thread */
 		pthread_create(&worker[i].tid, NULL, worker_run, (void*) &params[i]);
 		usleep(10);
 	}
@@ -615,18 +615,18 @@ int main(int arc, char** argv) {
 	lastsweep = time(NULL);
 
 	for (;;) {
-		// chill till the next sweep
+		/* chill till the next sweep */
 		usleep(conf->sweep);
-		// how long was the last cycle?
+		/* how long was the last cycle? */
 		now = time(NULL);
 		interval = now - lastsweep;
 		lastsweep = now;
-		// housekeeping ...
-		// first, we flush any Lua scripts that have been modified
+		/* housekeeping ... */
+		/* first, we flush any Lua scripts that have been modified */
 		pool_lock(pool);
 		for (i = 0; i < pool->count; i++) {
 			slot = pool_slot(pool, i);
-			// check for stale moon chips
+			/* check for stale moon chips */
 			if (!slot->status && slot->state && slot->name) {
 				if ((stat(slot->name, &fs) == STATUS_OK) &&
 						(fs.st_mtime > slot->load)) {
@@ -638,7 +638,7 @@ int main(int arc, char** argv) {
 			}
 		}
 		pool_unlock(pool);
-		// TODO: run housekeeping hook
+		/* TODO: run housekeeping hook */
 	}
 
 	free(params);
