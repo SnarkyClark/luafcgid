@@ -2,5 +2,6 @@
 *.depend
 *.layout
 *.log
+*.gch
 Makefile
 luafcgid
