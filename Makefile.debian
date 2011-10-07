@@ -31,11 +31,10 @@ OBJDIR = obj
 
 # basic setup
 CC = gcc
-WARN = -Wall
+WARN = -Wall -pedantic -ansi -std=c89
 INCS = -I$(PREFIX)/include -I$(LUAINC)
 LIBS = -L$(PREFIX)/lib -L$(LUALIB) -lm -lpthread -lfcgi -l$(LLIB)
 #DEBUG = -ggdb
-WARN = -pedantic -ansi -std=c89
 OPTS = -O2
 #OPTS = -O3 -march=native
 CFLAGS = $(INCS) $(WARN) $(OPTS) $(DEBUG) $G
