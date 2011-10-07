@@ -1,3 +1,5 @@
+# Generic Makefile
+
 SHELL = /bin/sh
 
 .SUFFIXES:

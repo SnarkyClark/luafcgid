@@ -1,3 +1,5 @@
+# Debian Makefile
+
 SHELL = /bin/sh
 
 .SUFFIXES:
