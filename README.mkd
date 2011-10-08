@@ -25,8 +25,6 @@ See the LICENSE file included with the source code
 
 All development testing is done with the following server platform:
 
--= luafcgid reference platform =-
-
 ## Hardware:
 
 Pentium 4 3.2 Ghz
@@ -44,13 +42,13 @@ Intel Pro+ 1GB ethernet
 *NOTE: Further testing may be done on other platforms when available.* 
 *Volunteers welcome.* 
 
-# PREREQUISITES
+# Prerequisites
 
 + Lua 5.1
 + libfcgi 2.4
 + libpthread/libthr/pthreadw32
 
-# INSTALLATION
+# Installation
 
 See the INSTALL file for your platform. If you do not see a INSTALL file for
 your platform, then you can try to use the generic build by running:
@@ -68,34 +66,32 @@ http://forum.luahub.com/index.php?board=17.0
 ## Webserver (nginx):
 
 Add the following lines to your server{} section:
-   
-   location ~ \.lua$ {
-	  
-	  # for BSD/Linux
-      fastcgi_pass   unix:/var/tmp/luafcgid.sock;
-      
-	  fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-      include        fastcgi_params;
-   }
 
-(make sure your root directive is set correctly)
+	location ~ \.lua$ {
+		# for BSD/Linux
+		fastcgi_pass   unix:/var/tmp/luafcgid.sock;
+		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+		include        fastcgi_params;
+	}
+
+**NOTE:** _make sure your root directive is set correctly_
    
-# DESIGN
+# Design
 
 luafcgid spawns and manages a number of worker threads that each contain an 
 isolated blocking accept loop. The FastCGI libraries provide a connect queue 
 for each worker thread so that transient load spikes can be handled with a 
 minimum of fuss.
 
-                           +---------------+                                
-                       +-->| worker thread |--+              +-------------+
- +------------------+  |   +---------------+  |              |   scripts   |
- | luafcgid process |--+                      +---- mutex -->| loaded into |
- +------------------+  |   +---------------+  |       |      |  Lua states |
-            |          +-->| worker thread |--+       |      +-------------+
-            |              +---------------+          |                
-            |                                         |             
-            +--------------- housekeeping ------------+             
+	                          +---------------+                                
+	                      +-->| worker thread |--+              +-------------+
+	+------------------+  |   +---------------+  |              |   scripts   |
+	| luafcgid process |--+                      +---- mutex -->| loaded into |
+	+------------------+  |   +---------------+  |       |      |  Lua states |
+	           |          +-->| worker thread |--+       |      +-------------+
+	           |              +---------------+          |                
+	           |                                         |             
+	           +--------------- housekeeping ------------+             
 			
 Lua is then introduced into the picture by created a shared Lua state for each 
 Lua script that is requested. A script can also be loaded into more then one 
