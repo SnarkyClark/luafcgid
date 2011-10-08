@@ -1,0 +1,38 @@
+% LUAFCGID(1) LuaFCGId User Manuals
+%
+% October 8, 2011
+
+# NAME
+
+luafcgid - a multithreaded Lua fastcgi server
+
+# SYNOPSIS
+
+luafcgid [*config file*]
+
+# DESCRIPTION
+
+luafcgid is a multithreaded FastCGI server that runs under BSD/Linux.
+It manages a number of independent, persistent Lua states, that are then loaded
+with Lua scripts from the file system. These scripts are loaded/initialized
+on demand, and held in memory for as long as possible. The Lua scripts are also
+allowed to interface with the FastCGI libraries: thus providing an extremely
+fast, streamlined and lightweight platform from which to develop web-centric
+apps in Lua.
+
+# OPTIONS
+
+All options are specified in the config file.
+
+# FILES
+
+*/usr/local/etc/luafcgid-config.lua*
+:	The configuration file. See **luafcgid-config**(5) for further details.
+          
+*/usr/local/share/lua/5.1/luafcgid.lua*
+:	The luafcgid Lua module. See **luafcgid-module**(3) for further details.
+
+# AUTHOR
+
+The LuaFCGId source code and all documentation may be downloaded from
+<http://stpeters.github.com/luafcgid/>.

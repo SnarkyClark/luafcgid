@@ -1,0 +1,91 @@
+% LUAFCGID-CONFIG(5) LuaFCGId User Manuals
+%
+% October 8, 2011
+
+# NAME
+
+luafcgid-config - configuration script for LuaFCGId
+
+# DESCRIPTION
+
+The configuration file for LuaFCGId. This file is actaully a Lua script that is
+loaded into a global Lua VM state, then executed once at startup. This allows for
+conditional configuration and callbacks to be created and registered.
+
+# SYNTAX
+
+The configuration script **must** be a valid and well-formed Lua script. All
+standard Lua syntax rules apply. It will typically be composed of three sections;
+global variables, callback definitions, and callback registrations. The callback
+definitions and registrations can be accomplished at the same time if desired.
+Also, since this is a script, you can use expressions for any of the variables. 
+Please see the included sample configuration script for an example.
+
+# VARIABLES
+
+listen = <*string*>
+:	Socket path to listen for fastcgi requests on. This can be either a unix
+	socket, such as `"/var/tmp/luafcgid.sock"`, or a TCP socket, as in
+	`"127.0.0.1:9000"`
+
+workers = <*integer*>
+:	Number of worker threads. This will be the maximum number of simultaneous
+	requests processed by LuaFCGId.
+
+states = <*integer*>
+:	Maximum number of Lua VM states allowed. (**NOTE: value needs to be larger
+	then or equal to "workers"**)
+
+clones = <*integer*>
+:	Maximum number of instances of an individual script allowed. Together with
+	"states", This affects things such as number of database connections.
+
+sweep = <*integer*>
+:	Housekeeping sweep cycle in milliseconds.
+
+retries = <*integer*>
+:	Number of search cycles before creating a new Lua VM state for a requested
+	script. This is typically set higher then 1 as a workaround for troublesome
+	implementations of pthreads.
+
+showerrors = <*boolean*>
+:	Whether to show errors as HTML in the browser. Production sites should set
+	this to **false**.
+
+buffering = <*boolean*>
+:	Controls output buffering of HTTP reponse data from the script to the client
+	browser. HTTP reponse headers are always buffered.
+
+headersize = <*integer*>
+:	Starting buffer size for custom HTTP reponse headers in bytes.
+
+bodysize = <*integer*>
+:	Starting buffer size for HTTP reponse data. This value is ignored if
+	"buffering" is set to **false**.
+	
+headers = <*string*>
+:	Custom header to add to all requests, such as a "X-Powered-By: Lua".
+
+handler = <*string*>
+:	Handler function name. This is the name of the function in your scripts that
+	LuaFCGId will call when a request arrives. The function is passed the
+	environment table and connection objects as the first and second
+	parameters, respectively.
+
+httpstatus = <*string*>
+:	Default HTTP status for responses. Should be set to "200 OK" unless you know
+	what you are doing.
+
+contenttype = <*string*>
+:	Default HTTP content type for responses. 
+
+maxpost = <*integer*>
+:	Maximum POST size allowed.
+
+logfile = <*string*>
+:	Full or relative path to logfile.
+
+
+
+
+
