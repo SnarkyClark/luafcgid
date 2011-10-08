@@ -46,6 +46,8 @@ $(EXEC): $(OBJECTS)
 clean:
 	rm -f $(OBJECTS) $(EXEC)
 
+docs:
+	cd ../docs; $(MAKE)
 
 
 

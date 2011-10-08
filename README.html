@@ -1,0 +1,70 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="date" content="October 7th, 2011" />
+  <title>LuaFCGId README</title>
+</head>
+<body>
+<div id="header">
+<h1 class="title">LuaFCGId README</h1>
+<h4 class="date">October 7th, 2011</h4>
+</div>
+<h1 id="summary">Summary</h1>
+<p>luafcgid is a multithreaded FastCGI server that runs under BSD/Linux. It manages a number of independent, persistent Lua states, that are then loaded with Lua scripts from the file system. These scripts are loaded/initialized on demand, and held in memory for as long as possible. The Lua scripts are also allowed to interface with the FastCGI libraries: thus providing an extremely fast, streamlined and lightweight platform from which to develop web-centric apps in Lua.</p>
+<h1 id="support">Support</h1>
+<p>There is a support forum available at http://forum.luahub.com/index.php?board=17.0</p>
+<h1 id="license">License</h1>
+<p>See the LICENSE file included with the source code</p>
+<h1 id="testing">Testing</h1>
+<p>All development testing is done with the following server platform:</p>
+<h2 id="hardware">Hardware:</h2>
+<p>Pentium 4 3.2 Ghz Intel MB chipset Intel Pro+ 1GB ethernet 256MB RAM</p>
+<h2 id="software">Software:</h2>
+<ul>
+<li>FreeBSD - last stable release</li>
+<li>nginx web server - last stable release</li>
+<li>Lua - last stable release</li>
+<li>libthr - drop-in replacement for libpthread</li>
+</ul>
+<p><em>NOTE: Further testing may be done on other platforms when available.</em> <em>Volunteers welcome.</em></p>
+<h1 id="prerequisites">Prerequisites</h1>
+<ul>
+<li>Lua 5.1</li>
+<li>libfcgi 2.4</li>
+<li>libpthread/libthr/pthreadw32</li>
+</ul>
+<h1 id="installation">Installation</h1>
+<p>See the INSTALL file for your platform. If you do not see a INSTALL file for your platform, then you can try to use the generic build by running:</p>
+<pre><code># sh configure
+# make
+</code></pre>
+<p>You may have to modify the Makefile created by the configure script, and will have to install manually. Any platform or distribution-specific Makefiles and initd/rc.d scripts are always welcome and can be submitted by github pull request, or to the support forum:</p>
+<p>http://forum.luahub.com/index.php?board=17.0</p>
+<h2 id="webserver-nginx">Webserver (nginx):</h2>
+<p>Add the following lines to your server{} section:</p>
+<pre><code>location ~ \.lua$ {
+    # for BSD/Linux
+    fastcgi_pass   unix:/var/tmp/luafcgid.sock;
+    fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+    include        fastcgi_params;
+}
+</code></pre>
+<p><strong>NOTE:</strong> <em>make sure your root directive is set correctly</em></p>
+<h1 id="design">Design</h1>
+<p>luafcgid spawns and manages a number of worker threads that each contain an isolated blocking accept loop. The FastCGI libraries provide a connect queue for each worker thread so that transient load spikes can be handled with a minimum of fuss.</p>
+<pre><code>                  +---------------+                                
+              +--&gt;| worker thread |--+            +-------------+
++----------+  |   +---------------+  |            |   scripts   |
+| luafcgid |--+                      +-- mutex --&gt;| loaded into |
++----------+  |   +---------------+  |     |      |  Lua states |
+     |        +--&gt;| worker thread |--+     |      +-------------+
+     |            +---------------+        |                
+     |                                     |             
+     +------------- housekeeping ----------+             
+</code></pre>
+<p>Lua is then introduced into the picture by created a shared Lua state for each Lua script that is requested. A script can also be loaded into more then one state if heavily requested. All scripts - including duplicates (clones) - are completely isolated from each other. After a state is initialized and loaded with a script, it is kept in memory for as long as possible. This allows for persistence across HTTP requests. Each Lua VM is run within a worker thread as needed. The use of on-demand clones allows for multiple workers to run the same popular script. There is a configurable limit to the total number of Lua states that luafcgid will maintain. When this limit is reached, popularity and aging are used to decide which states to flush and reload with a new script.</p>
+<p>Global housekeeping is run on a regular cycle (heartbeat) independent of requests. Current tasks include flushing any loaded scripts that have been modified. More tasks may be added in the future.</p>
+</body>
+</html>

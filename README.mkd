@@ -1,6 +1,6 @@
-% LuaFCGId
+% LuaFCGId README
 % 
-% Sep 30, 2011
+% October 7th, 2011
 
 # Summary
 
@@ -83,15 +83,15 @@ isolated blocking accept loop. The FastCGI libraries provide a connect queue
 for each worker thread so that transient load spikes can be handled with a 
 minimum of fuss.
 
-	                          +---------------+                                
-	                      +-->| worker thread |--+              +-------------+
-	+------------------+  |   +---------------+  |              |   scripts   |
-	| luafcgid process |--+                      +---- mutex -->| loaded into |
-	+------------------+  |   +---------------+  |       |      |  Lua states |
-	           |          +-->| worker thread |--+       |      +-------------+
-	           |              +---------------+          |                
-	           |                                         |             
-	           +--------------- housekeeping ------------+             
+	                  +---------------+                                
+	              +-->| worker thread |--+            +-------------+
+	+----------+  |   +---------------+  |            |   scripts   |
+	| luafcgid |--+                      +-- mutex -->| loaded into |
+	+----------+  |   +---------------+  |     |      |  Lua states |
+	     |        +-->| worker thread |--+     |      +-------------+
+	     |            +---------------+        |                
+	     |                                     |             
+	     +------------- housekeeping ----------+             
 			
 Lua is then introduced into the picture by created a shared Lua state for each 
 Lua script that is requested. A script can also be loaded into more then one 

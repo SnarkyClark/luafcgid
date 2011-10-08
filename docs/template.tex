@@ -13,17 +13,22 @@
   \fi
 \fi
 
-\DeclareFontFamily{T1}{bookman}{}
-%\DeclareFontShape{T1}{bookman}{m}{n}{ <-> rpbkl }{}
-%\DeclareFontShape{T1}{bookman}{m}{it}{ <-> rpbkli }{}
-\DeclareFontShape{T1}{bookman}{m}{n}{ <-> rpncr }{}
-\DeclareFontFamily{T1}{avantgar}{}
-\DeclareFontShape{T1}{avantgar}{m}{n}{ <-> rpagk }{}
+\DeclareFontFamily{T1}{ncntrsbk}{}
+\DeclareFontShape{T1}{ncntrsbk}{m}{n}{ <-> rpncr }{}
+\DeclareFontShape{T1}{ncntrsbk}{m}{it}{ <-> rpncri }{}
+\DeclareFontShape{T1}{ncntrsbk}{b}{n}{ <-> rpncb }{}
+\DeclareFontShape{T1}{ncntrsbk}{b}{it}{ <-> rpncbi }{}
+
+%\DeclareFontFamily{T1}{avantgar}{}
+%\DeclareFontShape{T1}{avantgar}{m}{n}{ <-> rpagk }{}
+
 \renewcommand{\encodingdefault}{T1}
-\renewcommand{\rmdefault}{bookman}
-\renewcommand{\sfdefault}{avantgar}
+\renewcommand{\rmdefault}{ncntrsbk}
+%\renewcommand{\sfdefault}{avantgar}
 
 %\renewcommand{\familydefault}{\sfdefault}
+
+\usepackage[margin=3cm]{geometry}
 
 $if(natbib)$
 \usepackage{natbib}
