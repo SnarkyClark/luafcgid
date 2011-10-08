@@ -57,6 +57,7 @@ install: all
 	install -b ../scripts/luafcgid.lua $(PACKAGEPATH)/luafcgid.lua
 	@mkdir -p $(CONFDIR)
 	install -b ../scripts/etc/config.debian.lua $(CONFDIR)/config.lua
+	cd ../docs; $(MAKE) install
 
 clean:
 	rm -f $(OBJECTS) $(EXEC)

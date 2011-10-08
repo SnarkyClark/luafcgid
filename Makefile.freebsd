@@ -58,6 +58,7 @@ install: all
 	@mkdir -p $(CONFDIR)
 	install -b ../scripts/etc/config.freebsd.lua $(CONFDIR)/config.lua
 	install -b ../scripts/etc/rc.d/luafcgid $(INITDIR)/luafcgid
+	cd ../docs; $(MAKE) install
 
 clean:
 	rm -f $(OBJECTS) $(EXEC)
