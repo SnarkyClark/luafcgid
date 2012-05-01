@@ -627,9 +627,12 @@ int main(int arc, char** argv) {
 
 	lastsweep = time(NULL);
 
+	struct timespec tv;
+	tv.tv_sec = conf->sweep / 1000;
+	tv.tv_nsec = (conf->sweep % 1000) * 1000000;
 	for (;;) {
 		/* chill till the next sweep */
-		usleep(conf->sweep);
+		nanosleep(&tv, NULL);
 		/* how long was the last cycle? */
 		now = time(NULL);
 		interval = now - lastsweep;
