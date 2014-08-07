@@ -7,6 +7,12 @@
 
 #include "main.h"
 
+#if LUA_VERSION_NUM >= 502
+static lua_State* lua_open() {
+	return luaL_newstate();
+}
+#endif
+
 const char* CRLF = "\r\n";
 
 /* utility functions */

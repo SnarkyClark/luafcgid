@@ -1,5 +1,11 @@
 #include "main.h"
 
+#if LUA_VERSION_NUM >= 502
+static lua_State* lua_open() {
+	return luaL_newstate();
+}
+#endif
+
 config_t* config_load(const char* fn) {
 	int rc;
 	struct stat fs;
