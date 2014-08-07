@@ -26,6 +26,7 @@ config_t* config_load(const char* fn) {
     cf->retries = 2;
     cf->showerrors = TRUE;
     cf->buffering = TRUE;
+    cf->daemonize = FALSE;
     cf->headersize = 64;
     cf->bodysize = 1024;
     cf->handler = (char*)malloc(strlen(HANDLER) + 1);
@@ -64,6 +65,7 @@ config_t* config_load(const char* fn) {
 			luaL_getglobal_int(cf->L, "retries", &cf->retries);
 			luaL_getglobal_bool(cf->L, "showerrors", &cf->showerrors);
 			luaL_getglobal_bool(cf->L, "buffering", &cf->buffering);
+			luaL_getglobal_bool(cf->L, "daemonize", &cf->daemonize);
 			luaL_getglobal_int(cf->L, "headersize", &cf->headersize);
 			luaL_getglobal_int(cf->L, "bodysize", &cf->bodysize);
 			luaL_getglobal_str(cf->L, "headers", &cf->headers);

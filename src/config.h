@@ -23,6 +23,7 @@ struct config_struct {
 	int retries;
 	BOOL showerrors;
 	BOOL buffering;
+	BOOL daemonize;
 	int headersize;
 	int bodysize;
 	char* headers;

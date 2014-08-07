@@ -157,8 +157,14 @@ char* script_load(const char* fn, struct stat* fs) {
 				memset(fbuf, 0, fs->st_size);
 				fread(fbuf, fs->st_size, 1, fp);
 				fclose(fp);
+			} else {
+				logit("failed opening file %s",fn);
 			}
+		} else {
+			logit("non-regular file %s",fn);
 		}
+	} else {
+		logit("failed stat for %s",fn);
 	}
 
 	return fbuf;
@@ -576,7 +582,8 @@ int main(int arc, char** argv) {
 		conf = config_load("config.lua");
 	}
 
-	daemon(0, 0);
+	if (conf->daemonize)
+		daemon(0, 0);
 
 	/* redirect stderr to logfile */
 	if (conf->logfile)
