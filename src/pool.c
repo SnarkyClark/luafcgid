@@ -114,8 +114,7 @@ void pool_load(pool_t* pool, int index, lua_State* L, char* name) {
 	slot->state = L;
 	/* slap a label on it */
 	if (name) {
-		slot->name = (char*)malloc(strlen(name) + 1);
-		strcpy(slot->name, name);
+		slot->name = strdup(name);
 	}
 	/* timestamp for aging */
 	slot->load = time(NULL);
