@@ -93,11 +93,13 @@ void luaL_pushcgicontent(lua_State* L, request_t* r) {
 	do {
 		/* check buffer size, grow if needed */
 		if ((buf_len + 1024) > buf_size) {
-			buf_size = buf_size * 2;
+			buf_size = buf_size + 1024;
 			newbuf = realloc((void*)buf, buf_size);
 			if (newbuf) {
 				buf = (char*)newbuf;
 			} else {
+				if (buf_len) lua_pushlstring(L, buf, buf_len);
+				if (buf) free(buf);
 				return;
 			}
 		}
