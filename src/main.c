@@ -98,7 +98,11 @@ void luaL_pushcgicontent(lua_State* L, request_t* r) {
 			if (newbuf) {
 				buf = (char*)newbuf;
 			} else {
-				if (buf_len) lua_pushlstring(L, buf, buf_len);
+				if (buf_len) {
+					lua_pushlstring(L, buf, buf_len);
+				} else {
+					lua_pushnil(L);
+				}
 				if (buf) free(buf);
 				return;
 			}
@@ -108,7 +112,11 @@ void luaL_pushcgicontent(lua_State* L, request_t* r) {
 		buf_len = buf_len + len;
 	} while ((len == 1024) && (buf_len < max)) ;
 	/* push buffer */
-	if (buf_len) lua_pushlstring(L, buf, buf_len);
+	if (buf_len) {
+		lua_pushlstring(L, buf, buf_len);
+	} else {
+		lua_pushnil(L);
+	}
 	if (buf) free(buf);
 }
 
